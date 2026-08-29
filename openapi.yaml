@@ -1,0 +1,107 @@
+openapi: 3.0.3
+info:
+  title: ShopFloor OS
+  version: 0.1.0
+  license:
+    name: MIT
+servers:
+  - url: http://localhost:8787
+paths:
+  /health:
+    get:
+      security: []
+      responses:
+        "200":
+          description: process up
+  /v1/commands/run.start:
+    post:
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assetId, workOrderId, operationId]
+              properties:
+                assetId: { type: string }
+                workOrderId: { type: string }
+                operationId: { type: string }
+      responses:
+        "200":
+          description: event appended or idempotent replay
+  /v1/commands/qty.scrap:
+    post:
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assetId, workOrderId, operationId, qty, reasonCode]
+              properties:
+                assetId: { type: string }
+                workOrderId: { type: string }
+                operationId: { type: string }
+                qty: { type: integer, minimum: 1 }
+                reasonCode: { type: string }
+      responses:
+        "200":
+          description: scrap recorded
+  /v1/commands/downtime.start:
+    post:
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assetId, reasonCode]
+              properties:
+                assetId: { type: string }
+                reasonCode: { type: string }
+      responses:
+        "200":
+          description: downtime opened
+  /v1/plants/{plantId}/assets/{assetId}/live:
+    get:
+      parameters:
+        - name: plantId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: assetId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: open run and downtime
+  /v1/work-orders/{id}/timeline:
+    get:
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: event stream for a work order
+components:
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema: { type: string }
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+security:
+  - bearer: []
