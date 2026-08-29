@@ -16,6 +16,12 @@ target from `work_orders.target_qty` allocated to the asset’s operations in th
 good = sum of `qty.good_recorded.payload.qty`  
 scrap = sum of `qty.scrap_recorded.payload.qty`
 
+**Corrections (B4)**  
+A `record.corrected` row never updates or deletes the event it names. That original row stays on the tape.  
+Qty (and later OEE) **must ignore** any event whose `event_id` appears as `payload.replacesEventId` on a `record.corrected` in the same plant (`src/effective.ts`).  
+
+To change a count, void the bad qty event, then append a new `qty.*` with the right number. Two corrections on the same `event_id` are rejected. Only `qty.good_recorded` and `qty.scrap_recorded` are correctable — run/lock events are not, so the lock projection cannot silently lie.
+
 **OEE**  
 availability × performance × quality when all three are defined.
 

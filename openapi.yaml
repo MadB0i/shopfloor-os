@@ -165,6 +165,37 @@ paths:
       responses:
         "200":
           description: handoff accepted (supervisor/planner)
+  /v1/commands/record.correct:
+    post:
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [replacesEventId, reason]
+              properties:
+                replacesEventId: { type: string }
+                reason: { type: string }
+      responses:
+        "200":
+          description: correction appended; original row unchanged
+  /v1/tape:
+    get:
+      parameters:
+        - name: from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          schema: { type: string, format: date-time }
+      responses:
+        "200":
+          description: plant event tape (auditor bearer only)
+        "403":
+          description: non-auditor
   /v1/floor:
     get:
       responses:

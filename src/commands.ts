@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { SqlClient } from "./db.js";
 import type { EventType } from "./events/catalog.js";
 import { assetIsPaused } from "./projections.js";
+import { supersededEventIds } from "./effective.js";
 import { appendEvent, lookupIdempotency, rememberIdempotency, requestHash } from "./events/store.js";
 
 export type Actor = {
@@ -393,4 +394,50 @@ export async function handleHandoffAccept(
       payload: { fromShift: parsed.fromShift, toShift: parsed.toShift },
     }),
   );
+}
+
+const correctBody = z.object({
+  replacesEventId: z.string().min(1),
+  reason: z.string().min(1).max(200),
+});
+
+const CORRECTABLE = new Set(["qty.good_recorded", "qty.scrap_recorded"]);
+
+export async function handleCorrect(
+  client: SqlClient,
+  actor: Actor,
+  body: unknown,
+  idempotencyKey: string | undefined,
+) {
+  denyAuditor(actor);
+  const parsed = correctBody.parse(body);
+  const hash = requestHash({ cmd: "record.correct", ...parsed });
+  return replayOrRun(client, actor.plantId, idempotencyKey, hash, async () => {
+    const original = await client.query<{
+      event_id: string;
+      type: string;
+      asset_id: string | null;
+      work_order_id: string | null;
+      operation_id: string | null;
+    }>(
+      `SELECT event_id, type, asset_id, work_order_id, operation_id
+       FROM floor_events WHERE event_id = $1 AND plant_id = $2`,
+      [parsed.replacesEventId, actor.plantId],
+    );
+    if (!original.rowCount) throw new HttpError(400, "unknown event in this plant");
+    if (!CORRECTABLE.has(original.rows[0].type)) {
+      throw new HttpError(400, "only qty.good_recorded and qty.scrap_recorded can be corrected");
+    }
+    const dead = await supersededEventIds(client, actor.plantId);
+    if (dead.has(parsed.replacesEventId)) {
+      throw new HttpError(409, "event already has a correction");
+    }
+    const src = original.rows[0];
+    return emit(client, actor, "record.corrected", {
+      assetId: src.asset_id,
+      workOrderId: src.work_order_id,
+      operationId: src.operation_id,
+      payload: { replacesEventId: parsed.replacesEventId, reason: parsed.reason },
+    });
+  });
 }

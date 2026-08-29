@@ -24,6 +24,7 @@ Built for small press shops, packing cells, and job-work floors — the kind of 
 | Downtime open / close | `downtime.started` / `downtime.ended` |
 | Shift handoff | `handoff.submitted` / `handoff.accepted` |
 | Same command twice (flaky Wi‑Fi) | `Idempotency-Key` → same `event_id`, no double count |
+| Void a bad qty (keep the tape) | `record.corrected` naming `replacesEventId` |
 
 Demo plant: **PL-DEMO** (three assets, one work order, coded downtime/scrap reasons).
 

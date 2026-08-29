@@ -4,9 +4,10 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";
 import { ZodError } from "zod";
-import { actorFromHeader, tokensFromEnv } from "./auth.js";
+import { actorFromHeader, canReadFullTape, tokensFromEnv } from "./auth.js";
 import {
   handleCompleteRun,
+  handleCorrect,
   handleDowntimeEnd,
   handleDowntimeStart,
   handleGood,
@@ -21,6 +22,7 @@ import {
 import { pool } from "./db.js";
 import { isEventType } from "./events/catalog.js";
 import { loadFloor } from "./floor.js";
+import { loadTape } from "./tape.js";
 
 const tokens = tokensFromEnv();
 const webRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "web");
@@ -117,6 +119,9 @@ export async function build() {
   app.post("/v1/commands/handoff.accept", async (req, reply) =>
     runCommand(req as never, reply, handleHandoffAccept),
   );
+  app.post("/v1/commands/record.correct", async (req, reply) =>
+    runCommand(req as never, reply, handleCorrect),
+  );
 
   app.get("/v1/floor", async (req, reply) => {
     const actor = actorOf(req);
@@ -160,6 +165,27 @@ export async function build() {
       }
     }
     return { workOrderId: id, events: rows };
+  });
+
+  app.get("/v1/tape", async (req, reply) => {
+    const actor = actorOf(req);
+    if (!canReadFullTape(actor.role)) {
+      reply.code(403);
+      return { error: "full tape is auditor-only" };
+    }
+    const q = req.query as { from?: string; to?: string };
+    const from = q.from ? new Date(q.from) : undefined;
+    const to = q.to ? new Date(q.to) : undefined;
+    if (from && Number.isNaN(from.getTime())) {
+      reply.code(400);
+      return { error: "invalid from" };
+    }
+    if (to && Number.isNaN(to.getTime())) {
+      reply.code(400);
+      return { error: "invalid to" };
+    }
+    const events = await loadTape(pool, actor.plantId, from, to);
+    return { plantId: actor.plantId, events };
   });
 
   await app.register(fastifyStatic, { root: webRoot, prefix: "/" });

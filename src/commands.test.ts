@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
+import { canReadFullTape } from "./auth.js";
 import {
   handleCompleteRun,
+  handleCorrect,
   handlePauseRun,
   handleResumeRun,
   handleScrap,
@@ -9,6 +11,7 @@ import {
   HttpError,
   type Actor,
 } from "./commands.js";
+import { effectiveQtySum } from "./effective.js";
 import { loadFloor } from "./floor.js";
 import { rebuildAssetLocks } from "./projections.js";
 import { applyMigrations } from "./schema.js";
@@ -229,4 +232,55 @@ test("resume without pause is 409", async () => {
     () => tx(db, (c) => handleResumeRun(c, operator, { assetId: "M-PRESS-01" }, undefined)),
     (err: unknown) => statusOf(err) === 409,
   );
+});
+
+test("correction voids qty for totals without deleting the original row", async () => {
+  const db = await freshPlant();
+  await tx(db, (c) => handleStartRun(c, operator, startBody, undefined));
+  const scrap = await tx(db, (c) =>
+    handleScrap(c, operator, { ...startBody, qty: 12, reasonCode: "DIM-OOS" }, undefined),
+  );
+  assert.equal(await effectiveQtySum(db, "PL-DEMO", "qty.scrap_recorded"), 12);
+  await tx(db, (c) =>
+    handleCorrect(c, operator, { replacesEventId: scrap.eventId, reason: "miscount" }, undefined),
+  );
+  const still = await db.query(`SELECT 1 FROM floor_events WHERE event_id = $1`, [scrap.eventId]);
+  assert.equal(still.rowCount, 1);
+  assert.equal(await effectiveQtySum(db, "PL-DEMO", "qty.scrap_recorded"), 0);
+  await assert.rejects(
+    () =>
+      tx(db, (c) =>
+        handleCorrect(c, operator, { replacesEventId: scrap.eventId, reason: "again" }, undefined),
+      ),
+    (err: unknown) => statusOf(err) === 409,
+  );
+});
+
+test("cannot correct a run.started event", async () => {
+  const db = await freshPlant();
+  const started = await tx(db, (c) => handleStartRun(c, operator, startBody, undefined));
+  await assert.rejects(
+    () =>
+      tx(db, (c) =>
+        handleCorrect(c, operator, { replacesEventId: started.eventId, reason: "oops" }, undefined),
+      ),
+    (err: unknown) => statusOf(err) === 400,
+  );
+});
+
+test("auditor cannot write a correction", async () => {
+  const db = await freshPlant();
+  await assert.rejects(
+    () =>
+      tx(db, (c) =>
+        handleCorrect(c, auditor, { replacesEventId: "evt-x", reason: "no" }, undefined),
+      ),
+    (err: unknown) => statusOf(err) === 403,
+  );
+});
+
+test("full tape is auditor-only", () => {
+  assert.equal(canReadFullTape("auditor"), true);
+  assert.equal(canReadFullTape("operator"), false);
+  assert.equal(canReadFullTape("supervisor"), false);
 });

@@ -26,3 +26,7 @@ export function actorFromHeader(header: string | undefined, tokens: TokenMap) {
   const token = header.slice("Bearer ".length).trim();
   return tokens[token] ?? null;
 }
+
+export function canReadFullTape(role: ActorRole) {
+  return role === "auditor";
+}
