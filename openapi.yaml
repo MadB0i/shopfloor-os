@@ -84,6 +84,38 @@ paths:
       responses:
         "200":
           description: run closed, lock released
+  /v1/commands/run.pause:
+    post:
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assetId]
+              properties:
+                assetId: { type: string }
+      responses:
+        "200":
+          description: run paused; lock remains
+  /v1/commands/run.resume:
+    post:
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assetId]
+              properties:
+                assetId: { type: string }
+      responses:
+        "200":
+          description: run resumed
   /v1/commands/qty.good:
     post:
       parameters:

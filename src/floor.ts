@@ -1,3 +1,4 @@
+import { pausedAssetIds } from "./projections.js";
 import type { SqlPool } from "./db.js";
 
 export async function loadFloor(pool: SqlPool, plantId: string) {
@@ -58,6 +59,8 @@ export async function loadFloor(pool: SqlPool, plantId: string) {
     [plantId],
   );
 
+  const paused = await pausedAssetIds(pool, plantId);
+
   return {
     plant: plant.rows[0],
     assets: assets.rows.map((a) => ({
@@ -71,6 +74,7 @@ export async function loadFloor(pool: SqlPool, plantId: string) {
             lockedAt: a.locked_at,
             workOrderId: a.work_order_id,
             operationId: a.operation_id,
+            paused: paused.has(a.id),
           }
         : null,
       openDowntime: downByAsset.get(a.id) ?? null,

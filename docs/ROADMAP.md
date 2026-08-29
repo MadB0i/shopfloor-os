@@ -12,6 +12,7 @@ Order is dependency, not a calendar. A slice is done when API + fixture + test e
 - Instrument board at `/` (`web/`)
 - Docs: architecture, metrics formulas, visual constraints
 - Routing: cannot start seq N until seq N−1 has `run.completed`
+- Pause/resume: lock stays, `openRun.paused` on the floor payload
 
 ## Spine (never drop)
 
@@ -30,8 +31,8 @@ In-memory PGlite. Double start 409, unknown scrap 400, auditor 403, idempotent r
 ### B2 — Routing gate (done)
 `run.start` requires previous `operation.seq` complete (seq 1 is free). Skip-ahead is 409. Board shows the API fault string; no UI restyle in this slice.
 
-### B3 — Pause / resume
-Catalog already has `run.paused` / `run.resumed`. Open run stays locked; RUN lamp stays on; tape shows pause. Complete still requires an open run.
+### B3 — Pause / resume (done)
+`run.pause` / `run.resume`. Lock stays. `GET /v1/floor` sets `openRun.paused`. Complete from hold is allowed. OpenAPI includes pause/resume (was missing vs live routes).
 
 ### B4 — Corrections (old C7)
 `POST /v1/commands/record.correct` with `replacesEventId` + reason. Insert `record.corrected` only. Projections that count qty must ignore or reverse the replaced event **by rule documented in** `docs/metrics.md`. Auditor token can read full plant tape (`GET /v1/tape?from&to`).

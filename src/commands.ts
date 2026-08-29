@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { SqlClient } from "./db.js";
 import type { EventType } from "./events/catalog.js";
+import { assetIsPaused } from "./projections.js";
 import { appendEvent, lookupIdempotency, rememberIdempotency, requestHash } from "./events/store.js";
 
 export type Actor = {
@@ -182,23 +183,82 @@ export async function handleCompleteRun(
   const parsed = assetOnly.parse(body);
   const hash = requestHash({ cmd: "run.complete", ...parsed });
   return replayOrRun(client, actor.plantId, idempotencyKey, hash, async () => {
-    const lock = await client.query(
-      `SELECT run_event_id FROM asset_locks WHERE asset_id = $1`,
-      [parsed.assetId],
-    );
-    if (!lock.rowCount) throw new HttpError(409, "asset has no open run");
+    const startId = await requireOpenLock(client, parsed.assetId);
     const start = await client.query(
       `SELECT work_order_id, operation_id FROM floor_events WHERE event_id = $1`,
-      [lock.rows[0].run_event_id],
+      [startId],
     );
     const eventId = await emit(client, actor, "run.completed", {
       assetId: parsed.assetId,
       workOrderId: start.rows[0]?.work_order_id,
       operationId: start.rows[0]?.operation_id,
-      payload: { startedEventId: lock.rows[0].run_event_id },
+      payload: { startedEventId: startId },
     });
     await client.query(`DELETE FROM asset_locks WHERE asset_id = $1`, [parsed.assetId]);
     return eventId;
+  });
+}
+
+async function requireOpenLock(client: SqlClient, assetId: string) {
+  const lock = await client.query<{ run_event_id: string }>(
+    `SELECT run_event_id FROM asset_locks WHERE asset_id = $1`,
+    [assetId],
+  );
+  if (!lock.rowCount) throw new HttpError(409, "asset has no open run");
+  return lock.rows[0].run_event_id;
+}
+
+export async function handlePauseRun(
+  client: SqlClient,
+  actor: Actor,
+  body: unknown,
+  idempotencyKey: string | undefined,
+) {
+  denyAuditor(actor);
+  const parsed = assetOnly.parse(body);
+  const hash = requestHash({ cmd: "run.pause", ...parsed });
+  return replayOrRun(client, actor.plantId, idempotencyKey, hash, async () => {
+    const startId = await requireOpenLock(client, parsed.assetId);
+    if (await assetIsPaused(client, parsed.assetId)) {
+      throw new HttpError(409, "run is already paused");
+    }
+    const start = await client.query(
+      `SELECT work_order_id, operation_id FROM floor_events WHERE event_id = $1`,
+      [startId],
+    );
+    return emit(client, actor, "run.paused", {
+      assetId: parsed.assetId,
+      workOrderId: start.rows[0]?.work_order_id,
+      operationId: start.rows[0]?.operation_id,
+      payload: { startedEventId: startId },
+    });
+  });
+}
+
+export async function handleResumeRun(
+  client: SqlClient,
+  actor: Actor,
+  body: unknown,
+  idempotencyKey: string | undefined,
+) {
+  denyAuditor(actor);
+  const parsed = assetOnly.parse(body);
+  const hash = requestHash({ cmd: "run.resume", ...parsed });
+  return replayOrRun(client, actor.plantId, idempotencyKey, hash, async () => {
+    const startId = await requireOpenLock(client, parsed.assetId);
+    if (!(await assetIsPaused(client, parsed.assetId))) {
+      throw new HttpError(409, "run is not paused");
+    }
+    const start = await client.query(
+      `SELECT work_order_id, operation_id FROM floor_events WHERE event_id = $1`,
+      [startId],
+    );
+    return emit(client, actor, "run.resumed", {
+      assetId: parsed.assetId,
+      workOrderId: start.rows[0]?.work_order_id,
+      operationId: start.rows[0]?.operation_id,
+      payload: { startedEventId: startId },
+    });
   });
 }
 

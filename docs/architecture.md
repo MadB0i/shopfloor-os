@@ -10,9 +10,9 @@ SQL transaction: validate → INSERT floor_events → update lock projection
 GET live / timeline  (read models, not ad-hoc table edits)
 ```
 
-`floor_events` is never updated. `asset_locks` is a projection; `npm run rebuild` wipes and fills it from unmatched `run.started` vs `run.completed`.
+`floor_events` is never updated. `asset_locks` is a projection; `npm run rebuild` wipes and fills it from unmatched `run.started` vs `run.completed`. Pause/resume do not drop the lock. `openRun.paused` is derived from unmatched `run.paused` vs `run.resumed` after that start.
 
-Postgres is the event store. There is no Kafka in this tree.
+Default local store is PGlite (`pglite:./data/shopfloor`). `postgres://` is optional. There is no Kafka in this tree.
 
 Clock: `recorded_at` is server insert time. `occurred_at` may be passed later; until then it defaults to now.
 

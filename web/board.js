@@ -81,7 +81,7 @@ function renderAssets() {
         <div class="lamp ${runOn ? "on-run" : ""}">RUN</div>
         <div class="lamp ${downOn ? "on-down" : ""}">DOWN</div>
       </div>
-      <div class="ticket">${a.openRun ? a.openRun.workOrderId || "OPEN RUN" : "IDLE"}</div>
+      <div class="ticket">${a.openRun ? `${a.openRun.workOrderId || "OPEN RUN"}${a.openRun.paused ? "  HOLD" : ""}` : "IDLE"}</div>
     `;
     assetsEl.append(card);
   }
@@ -138,6 +138,8 @@ function woOp() {
 const bodies = {
   "run.start": () => ({ assetId: selectedAsset, ...woOp() }),
   "run.complete": () => ({ assetId: selectedAsset }),
+  "run.pause": () => ({ assetId: selectedAsset }),
+  "run.resume": () => ({ assetId: selectedAsset }),
   "qty.good": () => ({ assetId: selectedAsset, ...woOp(), qty: Number(qtyEl.value) }),
   "qty.scrap": () => ({
     assetId: selectedAsset,

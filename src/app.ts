@@ -12,6 +12,8 @@ import {
   handleGood,
   handleHandoffAccept,
   handleHandoffSubmit,
+  handlePauseRun,
+  handleResumeRun,
   handleScrap,
   handleStartRun,
   HttpError,
@@ -94,6 +96,12 @@ export async function build() {
   );
   app.post("/v1/commands/run.complete", async (req, reply) =>
     runCommand(req as never, reply, handleCompleteRun),
+  );
+  app.post("/v1/commands/run.pause", async (req, reply) =>
+    runCommand(req as never, reply, handlePauseRun),
+  );
+  app.post("/v1/commands/run.resume", async (req, reply) =>
+    runCommand(req as never, reply, handleResumeRun),
   );
   app.post("/v1/commands/qty.good", async (req, reply) => runCommand(req as never, reply, handleGood));
   app.post("/v1/commands/qty.scrap", async (req, reply) => runCommand(req as never, reply, handleScrap));

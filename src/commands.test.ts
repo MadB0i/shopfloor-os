@@ -2,11 +2,14 @@ import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import {
   handleCompleteRun,
+  handlePauseRun,
+  handleResumeRun,
   handleScrap,
   handleStartRun,
   HttpError,
   type Actor,
 } from "./commands.js";
+import { loadFloor } from "./floor.js";
 import { rebuildAssetLocks } from "./projections.js";
 import { applyMigrations } from "./schema.js";
 import { seedPlant } from "./seed-plant.js";
@@ -188,4 +191,42 @@ test("seq 2 can start after seq 1 is completed", async () => {
     ),
   );
   assert.equal(next.replayed, false);
+});
+
+test("pause without an open run is 409", async () => {
+  const db = await freshPlant();
+  await assert.rejects(
+    () => tx(db, (c) => handlePauseRun(c, operator, { assetId: "M-PRESS-01" }, undefined)),
+    (err: unknown) => statusOf(err) === 409,
+  );
+});
+
+test("pause keeps the lock; resume clears paused; complete still works from hold", async () => {
+  const db = await freshPlant();
+  await tx(db, (c) => handleStartRun(c, operator, startBody, undefined));
+  await tx(db, (c) => handlePauseRun(c, operator, { assetId: "M-PRESS-01" }, undefined));
+  const held = await loadFloor(db, "PL-DEMO");
+  const press = held?.assets.find((a) => a.id === "M-PRESS-01");
+  assert.equal(press?.openRun?.paused, true);
+  await assert.rejects(
+    () => tx(db, (c) => handlePauseRun(c, operator, { assetId: "M-PRESS-01" }, undefined)),
+    (err: unknown) => statusOf(err) === 409,
+  );
+  await tx(db, (c) => handleResumeRun(c, operator, { assetId: "M-PRESS-01" }, undefined));
+  const going = await loadFloor(db, "PL-DEMO");
+  assert.equal(going?.assets.find((a) => a.id === "M-PRESS-01")?.openRun?.paused, false);
+  await tx(db, (c) => handlePauseRun(c, operator, { assetId: "M-PRESS-01" }, undefined));
+  const done = await tx(db, (c) => handleCompleteRun(c, operator, { assetId: "M-PRESS-01" }, undefined));
+  assert.equal(done.replayed, false);
+  const idle = await loadFloor(db, "PL-DEMO");
+  assert.equal(idle?.assets.find((a) => a.id === "M-PRESS-01")?.openRun, null);
+});
+
+test("resume without pause is 409", async () => {
+  const db = await freshPlant();
+  await tx(db, (c) => handleStartRun(c, operator, startBody, undefined));
+  await assert.rejects(
+    () => tx(db, (c) => handleResumeRun(c, operator, { assetId: "M-PRESS-01" }, undefined)),
+    (err: unknown) => statusOf(err) === 409,
+  );
 });

@@ -19,7 +19,7 @@ Built for small press shops, packing cells, and job-work floors — the kind of 
 
 | You send | The log stores |
 | --- | --- |
-| Start / complete a run on an asset | `run.started` / `run.completed` + asset lock |
+| Start / hold / resume / complete a run | `run.started` / `run.paused` / `run.resumed` / `run.completed` + asset lock |
 | Good qty / scrap qty | `qty.good_recorded` / `qty.scrap_recorded` |
 | Downtime open / close | `downtime.started` / `downtime.ended` |
 | Shift handoff | `handoff.submitted` / `handoff.accepted` |
