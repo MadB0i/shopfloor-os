@@ -107,6 +107,45 @@ const handoffAccept = z.object({
   toShift: z.string().min(1),
 });
 
+async function assertRoutingAllowsStart(
+  client: SqlClient,
+  plantId: string,
+  workOrderId: string,
+  operationId: string,
+) {
+  const wo = await client.query(
+    `SELECT 1 FROM work_orders WHERE id = $1 AND plant_id = $2`,
+    [workOrderId, plantId],
+  );
+  if (!wo.rowCount) throw new HttpError(400, "unknown work order");
+
+  const op = await client.query<{ seq: number; work_order_id: string }>(
+    `SELECT seq, work_order_id FROM operations WHERE id = $1`,
+    [operationId],
+  );
+  if (!op.rowCount) throw new HttpError(400, "unknown operation");
+  if (op.rows[0].work_order_id !== workOrderId) {
+    throw new HttpError(400, "operation does not belong to this work order");
+  }
+
+  const seq = Number(op.rows[0].seq);
+  if (seq <= 1) return;
+
+  const prev = await client.query<{ id: string }>(
+    `SELECT id FROM operations WHERE work_order_id = $1 AND seq = $2`,
+    [workOrderId, seq - 1],
+  );
+  if (!prev.rowCount) throw new HttpError(400, "routing gap: missing previous operation");
+
+  const done = await client.query(
+    `SELECT 1 FROM floor_events
+     WHERE plant_id = $1 AND work_order_id = $2 AND operation_id = $3 AND type = 'run.completed'
+     LIMIT 1`,
+    [plantId, workOrderId, prev.rows[0].id],
+  );
+  if (!done.rowCount) throw new HttpError(409, "previous operation is not complete");
+}
+
 export async function handleStartRun(
   client: SqlClient,
   actor: Actor,
@@ -117,6 +156,7 @@ export async function handleStartRun(
   const parsed = startRun.parse(body);
   const hash = requestHash({ cmd: "run.start", ...parsed });
   return replayOrRun(client, actor.plantId, idempotencyKey, hash, async () => {
+    await assertRoutingAllowsStart(client, actor.plantId, parsed.workOrderId, parsed.operationId);
     const lock = await client.query(`SELECT asset_id FROM asset_locks WHERE asset_id = $1`, [parsed.assetId]);
     if (lock.rowCount) throw new HttpError(409, "asset already has an open run");
     const eventId = await emit(client, actor, "run.started", {

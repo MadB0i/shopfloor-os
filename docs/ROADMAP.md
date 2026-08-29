@@ -11,7 +11,7 @@ Order is dependency, not a calendar. A slice is done when API + fixture + test e
 - `npm run rebuild` for locks
 - Instrument board at `/` (`web/`)
 - Docs: architecture, metrics formulas, visual constraints
-- `npm run b0` (PGlite file DB) so a clone runs without Docker or API keys
+- Routing: cannot start seq N until seq N−1 has `run.completed`
 
 ## Spine (never drop)
 
@@ -27,8 +27,8 @@ Writes = commands → events. Reads = projections. Rebuild must match live locks
 ### B1 — Command tests (done)
 In-memory PGlite. Double start 409, unknown scrap 400, auditor 403, idempotent replay, rebuild restores lock. `npm test`. UI not in this slice.
 
-### B2 — Routing gate (old C4)
-`run.start` only if previous `operation.seq` on that WO is completed (or seq = 1). Reject skip-ahead. Board already picks WO/OP; it must show the block as a fault line, not a silent start.
+### B2 — Routing gate (done)
+`run.start` requires previous `operation.seq` complete (seq 1 is free). Skip-ahead is 409. Board shows the API fault string; no UI restyle in this slice.
 
 ### B3 — Pause / resume
 Catalog already has `run.paused` / `run.resumed`. Open run stays locked; RUN lamp stays on; tape shows pause. Complete still requires an open run.

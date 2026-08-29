@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import {
+  handleCompleteRun,
   handleScrap,
   handleStartRun,
   HttpError,
@@ -128,4 +129,63 @@ test("rebuild restores the asset lock from the event log", async () => {
   );
   assert.equal(back.rowCount, 1);
   assert.equal(back.rows[0]?.run_event_id, started.eventId);
+});
+
+test("skip-ahead run.start is 409 until the previous operation is complete", async () => {
+  const db = await freshPlant();
+  await assert.rejects(
+    () =>
+      tx(db, (c) =>
+        handleStartRun(
+          c,
+          operator,
+          {
+            assetId: "M-PRESS-02",
+            workOrderId: "WO-24-0841",
+            operationId: "OP-0841-2",
+          },
+          undefined,
+        ),
+      ),
+    (err: unknown) => {
+      assert.equal(statusOf(err), 409);
+      assert.match((err as Error).message, /previous operation is not complete/);
+      return true;
+    },
+  );
+});
+
+test("unknown operation on run.start is 400", async () => {
+  const db = await freshPlant();
+  await assert.rejects(
+    () =>
+      tx(db, (c) =>
+        handleStartRun(
+          c,
+          operator,
+          { ...startBody, operationId: "OP-NOPE" },
+          undefined,
+        ),
+      ),
+    (err: unknown) => statusOf(err) === 400,
+  );
+});
+
+test("seq 2 can start after seq 1 is completed", async () => {
+  const db = await freshPlant();
+  await tx(db, (c) => handleStartRun(c, operator, startBody, undefined));
+  await tx(db, (c) => handleCompleteRun(c, operator, { assetId: "M-PRESS-01" }, undefined));
+  const next = await tx(db, (c) =>
+    handleStartRun(
+      c,
+      operator,
+      {
+        assetId: "M-PRESS-02",
+        workOrderId: "WO-24-0841",
+        operationId: "OP-0841-2",
+      },
+      undefined,
+    ),
+  );
+  assert.equal(next.replayed, false);
 });
