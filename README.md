@@ -47,6 +47,8 @@ npm start
 
 `npm run b0` = migrate + seed. Then open [http://localhost:8787/](http://localhost:8787/). Token field: `dev-operator`. LINK lamp turns CRT green when the log is up.
 
+`npm test` — catalog + command invariants (B1). No network, no API keys.
+
 Optional real Postgres (Docker or local) still works if you set `DATABASE_URL=postgres://shopfloor:shopfloor@localhost:5432/shopfloor` and create that role. Wrong password is `28P01` — use PGlite instead.
 
 ### HTTP examples

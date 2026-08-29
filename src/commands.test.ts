@@ -1,0 +1,131 @@
+import assert from "node:assert/strict";
+import { afterEach, test } from "node:test";
+import {
+  handleScrap,
+  handleStartRun,
+  HttpError,
+  type Actor,
+} from "./commands.js";
+import { rebuildAssetLocks } from "./projections.js";
+import { applyMigrations } from "./schema.js";
+import { seedPlant } from "./seed-plant.js";
+import { createPoolFromUrl, type SqlClient, type SqlPool } from "./sql.js";
+
+const operator: Actor = { userId: "U-OP-1", plantId: "PL-DEMO", role: "operator" };
+const auditor: Actor = { userId: "U-AUD-1", plantId: "PL-DEMO", role: "auditor" };
+
+const startBody = {
+  assetId: "M-PRESS-01",
+  workOrderId: "WO-24-0841",
+  operationId: "OP-0841-1",
+};
+
+let pool: SqlPool | undefined;
+
+afterEach(async () => {
+  if (pool) {
+    await pool.end();
+    pool = undefined;
+  }
+});
+
+async function freshPlant() {
+  pool = createPoolFromUrl("pglite:memory");
+  await applyMigrations(pool);
+  await seedPlant(pool);
+  return pool;
+}
+
+async function tx<T>(db: SqlPool, fn: (client: SqlClient) => Promise<T>) {
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await fn(client);
+    await client.query("COMMIT");
+    return result;
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+function statusOf(err: unknown) {
+  if (err instanceof HttpError) return err.statusCode;
+  throw err;
+}
+
+test("second start on the same asset is 409", async () => {
+  const db = await freshPlant();
+  await tx(db, (c) => handleStartRun(c, operator, startBody, undefined));
+  await assert.rejects(
+    () => tx(db, (c) => handleStartRun(c, operator, startBody, undefined)),
+    (err: unknown) => statusOf(err) === 409,
+  );
+});
+
+test("unknown scrap reason is 400", async () => {
+  const db = await freshPlant();
+  await assert.rejects(
+    () =>
+      tx(db, (c) =>
+        handleScrap(
+          c,
+          operator,
+          { ...startBody, qty: 1, reasonCode: "NOT-A-CODE" },
+          undefined,
+        ),
+      ),
+    (err: unknown) => statusOf(err) === 400,
+  );
+});
+
+test("auditor cannot write", async () => {
+  const db = await freshPlant();
+  await assert.rejects(
+    () => tx(db, (c) => handleStartRun(c, auditor, startBody, undefined)),
+    (err: unknown) => statusOf(err) === 403,
+  );
+});
+
+test("idempotent replay returns the same event id", async () => {
+  const db = await freshPlant();
+  const first = await tx(db, (c) => handleStartRun(c, operator, startBody, "key-1"));
+  const second = await tx(db, (c) => handleStartRun(c, operator, startBody, "key-1"));
+  assert.equal(first.replayed, false);
+  assert.equal(second.replayed, true);
+  assert.equal(second.eventId, first.eventId);
+});
+
+test("idempotency key reused with a different body is 409", async () => {
+  const db = await freshPlant();
+  await tx(db, (c) => handleStartRun(c, operator, startBody, "key-2"));
+  await assert.rejects(
+    () =>
+      tx(db, (c) =>
+        handleStartRun(
+          c,
+          operator,
+          { ...startBody, assetId: "M-PRESS-02" },
+          "key-2",
+        ),
+      ),
+    (err: unknown) => statusOf(err) === 409,
+  );
+});
+
+test("rebuild restores the asset lock from the event log", async () => {
+  const db = await freshPlant();
+  const started = await tx(db, (c) => handleStartRun(c, operator, startBody, undefined));
+  await db.query("DELETE FROM asset_locks");
+  const gone = await db.query(`SELECT 1 FROM asset_locks WHERE asset_id = $1`, ["M-PRESS-01"]);
+  assert.equal(gone.rowCount, 0);
+  await rebuildAssetLocks(db);
+  const back = await db.query(
+    `SELECT run_event_id FROM asset_locks WHERE asset_id = $1`,
+    ["M-PRESS-01"],
+  );
+  assert.equal(back.rowCount, 1);
+  assert.equal(back.rows[0]?.run_event_id, started.eventId);
+});

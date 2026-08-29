@@ -24,8 +24,8 @@ Writes = commands → events. Reads = projections. Rebuild must match live locks
 ### B0 — Run on this machine (done: PGlite default)
 `DATABASE_URL=pglite:./data/shopfloor` — no Docker, no Postgres password, no API keys. `npm run b0` then `npm start`. Real `postgres://` still supported.
 
-### B1 — Command tests (no UI)
-Fixture plant in a test DB (or transactional rollback). Cover: double start → 409, scrap unknown code → 400, auditor write → 403, idempotent replay same `event_id`, rebuild restores lock.
+### B1 — Command tests (done)
+In-memory PGlite. Double start 409, unknown scrap 400, auditor 403, idempotent replay, rebuild restores lock. `npm test`. UI not in this slice.
 
 ### B2 — Routing gate (old C4)
 `run.start` only if previous `operation.seq` on that WO is completed (or seq = 1). Reject skip-ahead. Board already picks WO/OP; it must show the block as a fault line, not a silent start.
