@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ShopFloor OS — board</title>
+    <link rel="stylesheet" href="/board.css" />
+  </head>
+  <body>
+    <header class="mast">
+      <div class="mast-mark">SHOPFLOOR OS</div>
+      <div class="mast-plant" id="plant">—</div>
+      <time class="mast-clock" id="clock" datetime="">00:00:00</time>
+      <div class="mast-link" id="link" data-state="off">LINK</div>
+      <label class="key">
+        TOKEN
+        <input id="token" type="password" autocomplete="off" spellcheck="false" />
+      </label>
+    </header>
+
+    <main class="deck">
+      <section class="bay" id="assets" aria-label="Assets"></section>
+      <aside class="stencil">
+        <h1>COMMAND</h1>
+        <p class="sel" id="selected">NO ASSET</p>
+        <form id="cmd" autocomplete="off">
+          <label>WO / OP
+            <select id="op"></select>
+          </label>
+          <label>QTY
+            <input id="qty" type="number" min="1" value="1" />
+          </label>
+          <label>SCRAP REASON
+            <select id="scrapReason"></select>
+          </label>
+          <label>DOWN REASON
+            <select id="downReason"></select>
+          </label>
+          <div class="pads">
+            <button type="button" data-cmd="run.start">RUN START</button>
+            <button type="button" data-cmd="run.complete">RUN END</button>
+            <button type="button" data-cmd="qty.good">GOOD +</button>
+            <button type="button" data-cmd="qty.scrap">SCRAP +</button>
+            <button type="button" data-cmd="downtime.start">DOWN START</button>
+            <button type="button" data-cmd="downtime.end">DOWN END</button>
+            <button type="button" data-cmd="handoff.submit">HANDOFF OUT</button>
+            <button type="button" data-cmd="handoff.accept" class="sup">HANDOFF ACK</button>
+          </div>
+        </form>
+        <pre class="fault" id="fault" hidden></pre>
+      </aside>
+    </main>
+
+    <section class="tape" aria-label="Event tape">
+      <h2>TAPE</h2>
+      <ol id="tape"></ol>
+    </section>
+
+    <script src="/board.js"></script>
+  </body>
+</html>

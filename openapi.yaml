@@ -68,6 +68,76 @@ paths:
       responses:
         "200":
           description: downtime opened
+  /v1/commands/run.complete:
+    post:
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assetId]
+              properties:
+                assetId: { type: string }
+      responses:
+        "200":
+          description: run closed, lock released
+  /v1/commands/qty.good:
+    post:
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assetId, workOrderId, operationId, qty]
+              properties:
+                assetId: { type: string }
+                workOrderId: { type: string }
+                operationId: { type: string }
+                qty: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: good qty recorded
+  /v1/commands/downtime.end:
+    post:
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assetId]
+              properties:
+                assetId: { type: string }
+      responses:
+        "200":
+          description: downtime closed
+  /v1/commands/handoff.submit:
+    post:
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: handoff offered
+  /v1/commands/handoff.accept:
+    post:
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: handoff accepted (supervisor/planner)
+  /v1/floor:
+    get:
+      responses:
+        "200":
+          description: plant board payload
   /v1/plants/{plantId}/assets/{assetId}/live:
     get:
       parameters:

@@ -1,6 +1,6 @@
 # Visual constraints (UI later)
 
-The HTTP API has no look. When a client appears, it must not read as a generic generated SaaS kit.
+The HTTP API has a companion **instrument board** at `/` (`web/`). It is a floor panel, not a marketing site.
 
 ## Allowed
 
