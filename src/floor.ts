@@ -1,6 +1,6 @@
-import type { Pool } from "pg";
+import type { SqlPool } from "./db.js";
 
-export async function loadFloor(pool: Pool, plantId: string) {
+export async function loadFloor(pool: SqlPool, plantId: string) {
   const plant = await pool.query(`SELECT id, name FROM plants WHERE id = $1`, [plantId]);
   if (!plant.rowCount) return null;
 

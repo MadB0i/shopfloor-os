@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { PoolClient } from "pg";
+import type { SqlClient } from "./db.js";
 import type { EventType } from "./events/catalog.js";
 import { appendEvent, lookupIdempotency, rememberIdempotency, requestHash } from "./events/store.js";
 
@@ -22,7 +22,7 @@ function denyAuditor(actor: Actor) {
 }
 
 async function replayOrRun(
-  client: PoolClient,
+  client: SqlClient,
   plantId: string,
   idempotencyKey: string | undefined,
   hash: string,
@@ -44,7 +44,7 @@ async function replayOrRun(
   return { eventId, replayed: false };
 }
 
-async function requireReason(client: PoolClient, plantId: string, kind: "scrap" | "downtime", code: string) {
+async function requireReason(client: SqlClient, plantId: string, kind: "scrap" | "downtime", code: string) {
   const { rows } = await client.query(
     `SELECT 1 FROM reason_codes WHERE plant_id = $1 AND kind = $2 AND code = $3`,
     [plantId, kind, code],
@@ -53,7 +53,7 @@ async function requireReason(client: PoolClient, plantId: string, kind: "scrap" 
 }
 
 async function emit(
-  client: PoolClient,
+  client: SqlClient,
   actor: Actor,
   type: EventType,
   extra: {
@@ -108,7 +108,7 @@ const handoffAccept = z.object({
 });
 
 export async function handleStartRun(
-  client: PoolClient,
+  client: SqlClient,
   actor: Actor,
   body: unknown,
   idempotencyKey: string | undefined,
@@ -133,7 +133,7 @@ export async function handleStartRun(
 }
 
 export async function handleCompleteRun(
-  client: PoolClient,
+  client: SqlClient,
   actor: Actor,
   body: unknown,
   idempotencyKey: string | undefined,
@@ -163,7 +163,7 @@ export async function handleCompleteRun(
 }
 
 export async function handleGood(
-  client: PoolClient,
+  client: SqlClient,
   actor: Actor,
   body: unknown,
   idempotencyKey: string | undefined,
@@ -182,7 +182,7 @@ export async function handleGood(
 }
 
 export async function handleScrap(
-  client: PoolClient,
+  client: SqlClient,
   actor: Actor,
   body: unknown,
   idempotencyKey: string | undefined,
@@ -202,7 +202,7 @@ export async function handleScrap(
 }
 
 export async function handleDowntimeStart(
-  client: PoolClient,
+  client: SqlClient,
   actor: Actor,
   body: unknown,
   idempotencyKey: string | undefined,
@@ -220,7 +220,7 @@ export async function handleDowntimeStart(
 }
 
 export async function handleDowntimeEnd(
-  client: PoolClient,
+  client: SqlClient,
   actor: Actor,
   body: unknown,
   idempotencyKey: string | undefined,
@@ -249,7 +249,7 @@ export async function handleDowntimeEnd(
 }
 
 export async function handleHandoffSubmit(
-  client: PoolClient,
+  client: SqlClient,
   actor: Actor,
   body: unknown,
   idempotencyKey: string | undefined,
@@ -277,7 +277,7 @@ export async function handleHandoffSubmit(
 }
 
 export async function handleHandoffAccept(
-  client: PoolClient,
+  client: SqlClient,
   actor: Actor,
   body: unknown,
   idempotencyKey: string | undefined,

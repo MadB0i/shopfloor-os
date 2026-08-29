@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
+    "b0": "tsx src/migrate.ts && tsx src/seed.ts",
     "migrate": "tsx src/migrate.ts",
     "seed": "tsx src/seed.ts",
     "test": "tsx --test src/events/catalog.test.ts src/invariants.test.ts",
@@ -17,6 +18,7 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@fastify/cors": "^10.0.2",
     "@fastify/static": "^8.3.0",
     "fastify": "^5.2.1",

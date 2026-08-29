@@ -1,27 +1,26 @@
 -- ShopFloor OS — event log first. Rows are facts, not a live spreadsheet.
+-- Idempotent so `npm run migrate` can run twice (B0 / vibe-coder machines).
 
-CREATE TABLE plants (
+CREATE TABLE IF NOT EXISTS plants (
   id            TEXT PRIMARY KEY,
   name          TEXT NOT NULL,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
   display_name  TEXT NOT NULL,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TYPE plant_role AS ENUM ('operator', 'supervisor', 'planner', 'auditor');
-
-CREATE TABLE memberships (
+CREATE TABLE IF NOT EXISTS memberships (
   plant_id      TEXT NOT NULL REFERENCES plants (id),
   user_id       TEXT NOT NULL REFERENCES users (id),
-  role          plant_role NOT NULL,
+  role          TEXT NOT NULL CHECK (role IN ('operator', 'supervisor', 'planner', 'auditor')),
   PRIMARY KEY (plant_id, user_id)
 );
 
-CREATE TABLE assets (
+CREATE TABLE IF NOT EXISTS assets (
   id            TEXT PRIMARY KEY,
   plant_id      TEXT NOT NULL REFERENCES plants (id),
   code          TEXT NOT NULL,
@@ -29,18 +28,16 @@ CREATE TABLE assets (
   UNIQUE (plant_id, code)
 );
 
-CREATE TYPE reason_kind AS ENUM ('downtime', 'scrap');
-
-CREATE TABLE reason_codes (
+CREATE TABLE IF NOT EXISTS reason_codes (
   id            TEXT PRIMARY KEY,
   plant_id      TEXT NOT NULL REFERENCES plants (id),
-  kind          reason_kind NOT NULL,
+  kind          TEXT NOT NULL CHECK (kind IN ('downtime', 'scrap')),
   code          TEXT NOT NULL,
   label         TEXT NOT NULL,
   UNIQUE (plant_id, kind, code)
 );
 
-CREATE TABLE work_orders (
+CREATE TABLE IF NOT EXISTS work_orders (
   id            TEXT PRIMARY KEY,
   plant_id      TEXT NOT NULL REFERENCES plants (id),
   code          TEXT NOT NULL,
@@ -49,7 +46,7 @@ CREATE TABLE work_orders (
   UNIQUE (plant_id, code)
 );
 
-CREATE TABLE operations (
+CREATE TABLE IF NOT EXISTS operations (
   id            TEXT PRIMARY KEY,
   work_order_id TEXT NOT NULL REFERENCES work_orders (id),
   seq           INTEGER NOT NULL CHECK (seq >= 1),
@@ -58,8 +55,7 @@ CREATE TABLE operations (
   UNIQUE (work_order_id, seq)
 );
 
--- Source of truth. Never UPDATE payload. Corrections are new rows.
-CREATE TABLE floor_events (
+CREATE TABLE IF NOT EXISTS floor_events (
   id              BIGSERIAL PRIMARY KEY,
   event_id        TEXT NOT NULL UNIQUE,
   plant_id        TEXT NOT NULL REFERENCES plants (id),
@@ -74,11 +70,11 @@ CREATE TABLE floor_events (
   occurred_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX floor_events_plant_time ON floor_events (plant_id, recorded_at);
-CREATE INDEX floor_events_wo ON floor_events (work_order_id);
-CREATE INDEX floor_events_asset ON floor_events (asset_id);
+CREATE INDEX IF NOT EXISTS floor_events_plant_time ON floor_events (plant_id, recorded_at);
+CREATE INDEX IF NOT EXISTS floor_events_wo ON floor_events (work_order_id);
+CREATE INDEX IF NOT EXISTS floor_events_asset ON floor_events (asset_id);
 
-CREATE TABLE idempotency_keys (
+CREATE TABLE IF NOT EXISTS idempotency_keys (
   plant_id      TEXT NOT NULL,
   key           TEXT NOT NULL,
   request_hash  TEXT NOT NULL,
@@ -87,7 +83,7 @@ CREATE TABLE idempotency_keys (
   PRIMARY KEY (plant_id, key)
 );
 
-CREATE TABLE asset_locks (
+CREATE TABLE IF NOT EXISTS asset_locks (
   asset_id      TEXT PRIMARY KEY REFERENCES assets (id),
   run_event_id  TEXT NOT NULL,
   locked_by     TEXT NOT NULL REFERENCES users (id),

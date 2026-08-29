@@ -38,7 +38,7 @@ async function runCommand(
   req: { headers: Record<string, unknown>; body: unknown; actor: ReqActor },
   reply: { code: (n: number) => unknown },
   fn: (
-    client: import("pg").PoolClient,
+    client: import("./db.js").SqlClient,
     actor: ReqActor,
     body: unknown,
     key: string | undefined,
@@ -65,7 +65,15 @@ export async function build() {
   const app = Fastify({ logger: true });
   await app.register(cors, { origin: true });
 
-  app.get("/health", async () => ({ ok: true }));
+  app.get("/health", async (_req, reply) => {
+    try {
+      await pool.query("SELECT 1 AS ok");
+      return { ok: true, db: pool.kind };
+    } catch (err) {
+      reply.code(503);
+      return { ok: false, error: err instanceof Error ? err.message : "db" };
+    }
+  });
 
   app.addHook("preHandler", async (req, reply) => {
     const url = req.url.split("?")[0];

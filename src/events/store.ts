@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
-import type { PoolClient } from "pg";
-import { CURRENT_SCHEMA, isEventType, type EventType } from "./events/catalog.js";
+import type { SqlClient } from "../db.js";
+import { CURRENT_SCHEMA, isEventType, type EventType } from "./catalog.js";
 
 export type FloorEventInput = {
   eventId?: string;
@@ -14,7 +14,7 @@ export type FloorEventInput = {
   occurredAt?: Date;
 };
 
-export async function appendEvent(client: PoolClient, input: FloorEventInput) {
+export async function appendEvent(client: SqlClient, input: FloorEventInput) {
   if (!isEventType(input.type)) {
     throw new Error(`unknown event type: ${input.type}`);
   }
@@ -45,7 +45,7 @@ export function requestHash(body: unknown) {
 }
 
 export async function rememberIdempotency(
-  client: PoolClient,
+  client: SqlClient,
   plantId: string,
   key: string,
   hash: string,
@@ -58,7 +58,7 @@ export async function rememberIdempotency(
   );
 }
 
-export async function lookupIdempotency(client: PoolClient, plantId: string, key: string) {
+export async function lookupIdempotency(client: SqlClient, plantId: string, key: string) {
   const { rows } = await client.query<{ request_hash: string; event_id: string }>(
     `SELECT request_hash, event_id FROM idempotency_keys WHERE plant_id = $1 AND key = $2`,
     [plantId, key],

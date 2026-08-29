@@ -32,31 +32,22 @@ Demo plant: **PL-DEMO** (three assets, one work order, coded downtime/scrap reas
 ## Requirements
 
 - Node.js 20+
-- PostgreSQL 16+ (Docker Compose in this repo, **or** a local server)
+- **No paid API keys.** Default database is **PGlite** (Postgres-compatible file in `./data/`). Optional: real PostgreSQL via `DATABASE_URL=postgres://...`
 
-`docker compose` is the default path. If Docker is not installed (common on a fresh Windows box), create a database and role that match `.env`:
-
-```sql
-CREATE USER shopfloor WITH PASSWORD 'shopfloor';
-CREATE DATABASE shopfloor OWNER shopfloor;
-```
-
-Then skip Compose and run `npm run migrate` against that instance. The Windows service `postgresql-x64-18` is enough if `DATABASE_URL` can actually log in — wrong password looks like `28P01`.
-
-## Run
+## Run (B0 — this is the normal path)
 
 ```bash
 git clone https://github.com/MadB0i/shopfloor-os.git
 cd shopfloor-os
 cp .env.example .env
-docker compose up -d
 npm install
-npm run migrate
-npm run seed
+npm run b0
 npm start
 ```
 
-Open the board at [http://localhost:8787/](http://localhost:8787/). Default operator token is `dev-operator` (also in `.env.example`).
+`npm run b0` = migrate + seed. Then open [http://localhost:8787/](http://localhost:8787/). Token field: `dev-operator`. LINK lamp turns CRT green when the log is up.
+
+Optional real Postgres (Docker or local) still works if you set `DATABASE_URL=postgres://shopfloor:shopfloor@localhost:5432/shopfloor` and create that role. Wrong password is `28P01` — use PGlite instead.
 
 ### HTTP examples
 

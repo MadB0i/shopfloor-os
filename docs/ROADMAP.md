@@ -1,50 +1,67 @@
-# Roadmap
+# Build roadmap
 
-Order is dependency, not a calendar. A capability is done when API + tests + fixtures exist. Screens are not a milestone.
+Order is dependency, not a calendar. A slice is done when API + fixture + test exist. The board is allowed only as a read/write face on those APIs — not as a substitute for them.
 
-## Spine
+## Already on `main`
 
-Source of truth is `floor_events`. Commands append. Reads use projections. Rebuild must reproduce locks from the log.
+- Event store `floor_events` (no in-place edits), `schema_version`, idempotency keys
+- Demo plant `PL-DEMO`, roles, bearer tokens
+- Commands: run start/end, good/scrap, downtime start/end, handoff submit/accept
+- Projections: `asset_locks`, `GET /v1/floor`, live asset, work-order timeline
+- `npm run rebuild` for locks
+- Instrument board at `/` (`web/`)
+- Docs: architecture, metrics formulas, visual constraints
+- `npm run b0` (PGlite file DB) so a clone runs without Docker or API keys
 
-## Capabilities
+## Spine (never drop)
 
-**C0 — Tenancy & identity**  
-Plant, users, roles (`operator`, `supervisor`, `planner`, `auditor`). Demo tokens only until a real IdP is wired.
+Writes = commands → events. Reads = projections. Rebuild must match live locks. Reason codes, not free text. Unknown event types rejected.
 
-**C1 — Catalog**  
-Assets, downtime/scrap reason codes (codes, not free text), work orders, numbered operations.
+---
 
-**C2 — Event ingest**  
-Typed events, `schema_version`, `Idempotency-Key`, unknown types rejected.
+## Next to build (this order)
 
-**C3 — Live projection**  
-Per asset: open run, open downtime. Asset lock so two starts collide.
+### B0 — Run on this machine (done: PGlite default)
+`DATABASE_URL=pglite:./data/shopfloor` — no Docker, no Postgres password, no API keys. `npm run b0` then `npm start`. Real `postgres://` still supported.
 
-**C4 — Work order queue**  
-Routing sequence; block if previous operation incomplete.
+### B1 — Command tests (no UI)
+Fixture plant in a test DB (or transactional rollback). Cover: double start → 409, scrap unknown code → 400, auditor write → 403, idempotent replay same `event_id`, rebuild restores lock.
 
-**C5 — OEE-lite**  
-Availability, performance, quality from events. Formulas in `docs/metrics.md`.
+### B2 — Routing gate (old C4)
+`run.start` only if previous `operation.seq` on that WO is completed (or seq = 1). Reject skip-ahead. Board already picks WO/OP; it must show the block as a fault line, not a silent start.
 
-**C6 — Shift handoff**  
-Snapshot of open runs/downtime/material; next shift must accept.
+### B3 — Pause / resume
+Catalog already has `run.paused` / `run.resumed`. Open run stays locked; RUN lamp stays on; tape shows pause. Complete still requires an open run.
 
-**C7 — Corrections & auditor stream**  
-`record.corrected` points at a prior `event_id`. Timeline query.
+### B4 — Corrections (old C7)
+`POST /v1/commands/record.correct` with `replacesEventId` + reason. Insert `record.corrected` only. Projections that count qty must ignore or reverse the replaced event **by rule documented in** `docs/metrics.md`. Auditor token can read full plant tape (`GET /v1/tape?from&to`).
 
-**C8 — Jobs**  
-Shift close warnings, naive due-date vs historical rate, CSV export of events.
+### B5 — OEE-lite API (old C5)
+`GET /v1/metrics/oee?asset=&from=&to=` using `docs/metrics.md`. If a factor cannot be computed, omit it (`null`), do not invent. Board: one dense row under the asset (A / P / Q), not a chart widget.
 
-**C9 — Reliability**  
-Ingest 429, backups = the events table.
+### B6 — Handoff as a gate (old C6)
+`handoff.submitted` snapshots open runs + open downtime. Next shift: `run.start` blocked until `handoff.accepted` for that plant/window **or** supervisor override event. Accept stays supervisor/planner-only.
 
-**C10 — Edge**  
-Offline client queue, scrap photos as `media.attached`.
+### B7 — Planner catalog writes
+`POST` assets, reason codes, work orders, operations (planner role). Seed stays the demo; real plants stop living only in `seed.ts`.
 
-## Out of v1
+### B8 — Export (old C8, thin)
+`GET /v1/export/events.csv?from&to` — raw log, one row per event. No “pretty report” that hides corrections.
 
-ERP, GST, full inventory, native mobile, SAP, ML.
+### B9 — Ingest pressure (old C9)
+429 when idempotency/event insert storms. Document backup = dump `floor_events`. Health already exists; add DB ping on `/health`.
 
-## GitHub
+### B10 — Edge (last)
+Browser offline queue for commands (IndexedDB), flush when LINK is ok. Photos later as `media.attached` + object store. Not before B1–B4.
 
-Public MIT. No paid API. Postgres is the only service.
+---
+
+## Explicitly not this product
+
+ERP, GST, full inventory, native apps, SAP connectors, chatbots, ML scheduling, SaaS marketing landing page.
+
+## GitHub surface after each slice
+
+Push the slice with a fixture + what broke if you skip the invariant. Stars follow a **runnable** board and an honest README, not a longer roadmap.
+
+Default clone uses PGlite (file DB). Postgres is optional.
