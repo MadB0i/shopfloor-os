@@ -50,8 +50,8 @@ In-memory PGlite. Double start 409, unknown scrap 400, auditor 403, idempotent r
 ### B8 — Export (old C8, thin)
 `GET /v1/export/events.csv?from&to` — raw log, one row per event. No “pretty report” that hides corrections.
 
-### B9 — Ingest pressure (old C9)
-429 when idempotency/event insert storms. Document backup = dump `floor_events`. Health already exists; add DB ping on `/health`.
+### B9 — Ingest pressure
+`/health` already pings the DB (B0). Remaining: ingest 429, backup = dump `floor_events`.
 
 ### B10 — Edge (last)
 Browser offline queue for commands (IndexedDB), flush when LINK is ok. Photos later as `media.attached` + object store. Not before B1–B4.

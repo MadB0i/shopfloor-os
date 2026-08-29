@@ -29,5 +29,16 @@
     "plantId": "PL-DEMO",
     "assetId": "M-PRESS-01",
     "payload": { "reasonCode": "WAIT-MATERIAL" }
+  },
+  {
+    "eventId": "evt-seed-04",
+    "type": "record.corrected",
+    "schema_version": 1,
+    "actorId": "U-OP-1",
+    "plantId": "PL-DEMO",
+    "assetId": "M-PRESS-01",
+    "workOrderId": "WO-24-0841",
+    "operationId": "OP-0841-1",
+    "payload": { "replacesEventId": "evt-seed-02", "reason": "miscount" }
   }
 ]

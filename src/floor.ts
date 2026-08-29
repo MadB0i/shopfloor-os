@@ -1,3 +1,4 @@
+import { annotateVoided } from "./effective.js";
 import { pausedAssetIds } from "./projections.js";
 import type { SqlPool } from "./db.js";
 
@@ -82,6 +83,6 @@ export async function loadFloor(pool: SqlPool, plantId: string) {
     workOrders: orders.rows,
     operations: ops.rows,
     reasonCodes: reasons.rows,
-    tape: tape.rows,
+    tape: await annotateVoided(pool, plantId, tape.rows),
   };
 }

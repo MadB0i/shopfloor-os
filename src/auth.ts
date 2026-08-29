@@ -13,6 +13,11 @@ export function tokensFromEnv(): TokenMap {
       plantId: "PL-DEMO",
       role: "supervisor",
     },
+    [process.env.PLANNER_TOKEN ?? "dev-planner"]: {
+      userId: "U-PL-1",
+      plantId: "PL-DEMO",
+      role: "planner",
+    },
     [process.env.AUDITOR_TOKEN ?? "dev-auditor"]: {
       userId: "U-AUD-1",
       plantId: "PL-DEMO",

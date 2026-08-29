@@ -1,16 +1,8 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import { canReadFullTape } from "./auth.js";
-import {
-  handleCompleteRun,
-  handleCorrect,
-  handlePauseRun,
-  handleResumeRun,
-  handleScrap,
-  handleStartRun,
-  HttpError,
-  type Actor,
-} from "./commands.js";
+import { handleCompleteRun, handleCorrect, handleGood, handlePauseRun, handleResumeRun, handleScrap, handleStartRun, HttpError, type Actor } from "./commands.js";
+import { loadTape } from "./tape.js";
 import { effectiveQtySum } from "./effective.js";
 import { loadFloor } from "./floor.js";
 import { rebuildAssetLocks } from "./projections.js";
@@ -283,4 +275,34 @@ test("full tape is auditor-only", () => {
   assert.equal(canReadFullTape("auditor"), true);
   assert.equal(canReadFullTape("operator"), false);
   assert.equal(canReadFullTape("supervisor"), false);
+  assert.equal(canReadFullTape("planner"), false);
+});
+
+test("good qty is counted; tape marks voided scrap", async () => {
+  const db = await freshPlant();
+  await tx(db, (c) => handleStartRun(c, operator, startBody, undefined));
+  await tx(db, (c) => handleGood(c, operator, { ...startBody, qty: 8 }, undefined));
+  const scrap = await tx(db, (c) =>
+    handleScrap(c, operator, { ...startBody, qty: 3, reasonCode: "DIM-OOS" }, undefined),
+  );
+  await tx(db, (c) =>
+    handleCorrect(c, operator, { replacesEventId: scrap.eventId, reason: "miscount" }, undefined),
+  );
+  assert.equal(await effectiveQtySum(db, "PL-DEMO", "qty.good_recorded"), 8);
+  const tape = await loadTape(db, "PL-DEMO");
+  const voided = tape.find((e) => e.event_id === scrap.eventId);
+  assert.equal(voided?.voided, true);
+  const future = await loadTape(db, "PL-DEMO", new Date("2099-01-01T00:00:00Z"));
+  assert.equal(future.length, 0);
+});
+
+test("unknown event cannot be corrected", async () => {
+  const db = await freshPlant();
+  await assert.rejects(
+    () =>
+      tx(db, (c) =>
+        handleCorrect(c, operator, { replacesEventId: "no-such-event", reason: "x" }, undefined),
+      ),
+    (err: unknown) => statusOf(err) === 400,
+  );
 });

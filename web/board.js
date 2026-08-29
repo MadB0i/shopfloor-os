@@ -121,7 +121,7 @@ function renderTape() {
   for (const ev of floor.tape) {
     const li = document.createElement("li");
     const when = new Date(ev.occurred_at).toTimeString().slice(0, 8);
-    li.innerHTML = `<span class="when">${when}</span><span class="kind">${ev.type}</span><span>${ev.asset_id || "PLANT"} ${ev.work_order_id || ""}</span>`;
+    li.innerHTML = `<span class="when">${when}</span><span class="kind">${ev.type}${ev.voided ? " VOID" : ""}</span><span>${ev.asset_id || "PLANT"} ${ev.work_order_id || ""}</span>`;
     tapeEl.append(li);
   }
 }

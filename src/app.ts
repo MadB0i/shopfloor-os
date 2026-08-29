@@ -20,6 +20,7 @@ import {
   HttpError,
 } from "./commands.js";
 import { pool } from "./db.js";
+import { annotateVoided } from "./effective.js";
 import { isEventType } from "./events/catalog.js";
 import { loadFloor } from "./floor.js";
 import { loadTape } from "./tape.js";
@@ -164,7 +165,7 @@ export async function build() {
         return { error: `corrupt event type ${row.type}` };
       }
     }
-    return { workOrderId: id, events: rows };
+    return { workOrderId: id, events: await annotateVoided(pool, actor.plantId, rows) };
   });
 
   app.get("/v1/tape", async (req, reply) => {

@@ -14,6 +14,7 @@ export async function seedPlant(pool: SqlPool) {
       `INSERT INTO users (id, display_name) VALUES
         ('U-OP-1', 'Rina (operator)'),
         ('U-SUP-1', 'Kamal (supervisor)'),
+        ('U-PL-1', 'Meera (planner)'),
         ('U-AUD-1', 'Audit desk')
        ON CONFLICT DO NOTHING`,
     );
@@ -21,6 +22,7 @@ export async function seedPlant(pool: SqlPool) {
       `INSERT INTO memberships (plant_id, user_id, role) VALUES
         ($1, 'U-OP-1', 'operator'),
         ($1, 'U-SUP-1', 'supervisor'),
+        ($1, 'U-PL-1', 'planner'),
         ($1, 'U-AUD-1', 'auditor')
        ON CONFLICT DO NOTHING`,
       [plant],

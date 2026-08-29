@@ -2,7 +2,7 @@
 
 A factory **black box**. Every start, pause, scrap count, and downtime reason is an append-only event. Nobody edits yesterday’s row. A mistake is a new `record.corrected` line, same as a paper log you were not allowed to white-out.
 
-This is not another MES dashboard clone. The unit of truth is `floor_events` in Postgres. Locks and live status are projections. If the lock table lies, `npm run rebuild` reconstructs it from the log.
+This is not another MES dashboard clone. The unit of truth is `floor_events` (PGlite by default, or Postgres). Locks and live status are projections. If the lock table lies, `npm run rebuild` reconstructs it from the log.
 
 Built for small press shops, packing cells, and job-work floors — the kind of place where the ticket lives in a shirt pocket and the delay reason dies at shift change.
 
@@ -48,11 +48,18 @@ npm start
 
 `npm run b0` = migrate + seed. Then open [http://localhost:8787/](http://localhost:8787/). Token field: `dev-operator`. LINK lamp turns CRT green when the log is up.
 
-`npm test` — catalog, command invariants, routing gate (B1–B2). No network, no API keys.
+`npm test` — B1–B4 command tests. No network, no API keys.
 
 Optional real Postgres (Docker or local) still works if you set `DATABASE_URL=postgres://shopfloor:shopfloor@localhost:5432/shopfloor` and create that role. Wrong password is `28P01` — use PGlite instead.
 
 ### HTTP examples
+
+Auditor plant tape (not the operator board):
+
+```bash
+curl -s http://localhost:8787/v1/tape \
+  -H "Authorization: Bearer dev-auditor"
+```
 
 ```bash
 curl -s -X POST http://localhost:8787/v1/commands/run.start \

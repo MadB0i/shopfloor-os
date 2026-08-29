@@ -65,3 +65,12 @@ export async function effectiveQtySum(
   }
   return sum;
 }
+
+export async function annotateVoided<T extends { event_id: string }>(
+  db: Queryable,
+  plantId: string,
+  rows: T[],
+) {
+  const dead = await supersededEventIds(db, plantId);
+  return rows.map((row) => ({ ...row, voided: dead.has(row.event_id) }));
+}
