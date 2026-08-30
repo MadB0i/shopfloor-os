@@ -57,8 +57,8 @@ Optional real Postgres (Docker or local) still works if you set `DATABASE_URL=po
 Auditor plant tape (not the operator board):
 
 ```bash
-curl -s http://localhost:8787/v1/tape \
-  -H "Authorization: Bearer dev-auditor"
+curl -s "http://localhost:8787/v1/metrics/oee?from=2026-08-30T00:00:00.000Z&to=2026-08-31T00:00:00.000Z" \
+  -H "Authorization: Bearer dev-operator"
 ```
 
 ```bash

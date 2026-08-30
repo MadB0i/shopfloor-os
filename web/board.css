@@ -166,6 +166,14 @@ body {
   color: var(--ink);
 }
 
+.oee {
+  margin-top: 8px;
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 10px;
+  color: var(--mute);
+  letter-spacing: 0.06em;
+}
+
 .stencil {
   border-left: 1px solid var(--line);
   padding: 12px;

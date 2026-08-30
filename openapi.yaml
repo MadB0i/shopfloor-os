@@ -225,6 +225,28 @@ paths:
       responses:
         "200":
           description: event stream for a work order
+  /v1/metrics/oee:
+    get:
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          required: true
+          schema: { type: string, format: date-time }
+        - name: asset
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: OEE-lite for one asset, or assets[] when asset is omitted. Null factors are omitted math, not zero.
+        "400":
+          description: missing or inverted window
+        "404":
+          description: unknown asset
 components:
   parameters:
     IdempotencyKey:

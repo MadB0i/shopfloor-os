@@ -14,6 +14,7 @@ Order is dependency, not a calendar. A slice is done when API + fixture + test e
 - Routing: cannot start seq N until seq N−1 has `run.completed`
 - Pause/resume: lock stays, `openRun.paused` on the floor payload
 - Corrections: qty events voided by `record.corrected`; auditor `GET /v1/tape`
+- OEE-lite: `GET /v1/metrics/oee`; board A/P/Q row
 
 ## Spine (never drop)
 
@@ -38,8 +39,8 @@ In-memory PGlite. Double start 409, unknown scrap 400, auditor 403, idempotent r
 ### B4 — Corrections (done)
 `POST /v1/commands/record.correct` (`replacesEventId`, `reason`). Original row stays. Qty totals skip superseded ids (`effectiveQtySum`). `GET /v1/tape?from&to` is auditor-only.
 
-### B5 — OEE-lite API (old C5)
-`GET /v1/metrics/oee?asset=&from=&to=` using `docs/metrics.md`. If a factor cannot be computed, omit it (`null`), do not invent. Board: one dense row under the asset (A / P / Q), not a chart widget.
+### B5 — OEE-lite API (done)
+`GET /v1/metrics/oee?from=&to=&asset=`. Null if a factor cannot be computed. Board shows one dense A/P/Q/OEE row (local calendar day), not a chart.
 
 ### B6 — Handoff as a gate (old C6)
 `handoff.submitted` snapshots open runs + open downtime. Next shift: `run.start` blocked until `handoff.accepted` for that plant/window **or** supervisor override event. Accept stays supervisor/planner-only.

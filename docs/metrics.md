@@ -26,3 +26,6 @@ To change a count, void the bad qty event, then append a new `qty.*` with the ri
 availability × performance × quality when all three are defined.
 
 These formulas ship before the metrics API so nobody “tweaks the dashboard.”
+
+**API (B5)**  
+`GET /v1/metrics/oee?from=&to=&asset=` — window is `[from, to)`. `asset` optional (all plant assets). Missing factors are JSON `null`. Quality uses `effectiveQtySum` (corrections). Performance is null unless exactly one work order has `run.started` on that asset in the window.

@@ -16,6 +16,11 @@ tokenEl.value = stored;
 
 let selectedAsset = null;
 let floor = null;
+let oeeById = {};
+
+function oeeCell(n) {
+  return n == null || Number.isNaN(n) ? "—" : Number(n).toFixed(3);
+}
 
 function tick() {
   const now = new Date();
@@ -49,6 +54,18 @@ async function load() {
     floor = await res.json();
     linkEl.dataset.state = "ok";
     plantEl.textContent = `${floor.plant.id}  ${floor.plant.name}`;
+    oeeById = {};
+    const until = new Date();
+    const since = new Date(until);
+    since.setHours(0, 0, 0, 0);
+    const oeeRes = await fetch(
+      `/v1/metrics/oee?from=${encodeURIComponent(since.toISOString())}&to=${encodeURIComponent(until.toISOString())}`,
+      { headers: authHeaders() },
+    );
+    if (oeeRes.ok) {
+      const body = await oeeRes.json();
+      oeeById = Object.fromEntries((body.assets || []).map((s) => [s.assetId, s]));
+    }
     renderAssets();
     renderOps();
     renderReasons();
@@ -74,6 +91,7 @@ function renderAssets() {
     });
     const runOn = Boolean(a.openRun);
     const downOn = Boolean(a.openDowntime);
+    const s = oeeById[a.id];
     card.innerHTML = `
       <div class="code">${a.code}</div>
       <div class="name">${a.name}</div>
@@ -82,6 +100,7 @@ function renderAssets() {
         <div class="lamp ${downOn ? "on-down" : ""}">DOWN</div>
       </div>
       <div class="ticket">${a.openRun ? `${a.openRun.workOrderId || "OPEN RUN"}${a.openRun.paused ? "  HOLD" : ""}` : "IDLE"}</div>
+      <div class="oee">A ${oeeCell(s?.availability)}  P ${oeeCell(s?.performance)}  Q ${oeeCell(s?.quality)}  OEE ${oeeCell(s?.oee)}</div>
     `;
     assetsEl.append(card);
   }

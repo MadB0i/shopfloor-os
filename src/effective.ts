@@ -52,15 +52,20 @@ export async function effectiveQtySum(
   db: Queryable,
   plantId: string,
   type: "qty.good_recorded" | "qty.scrap_recorded",
+  scope?: { assetId?: string; from?: Date; to?: Date },
 ) {
   const dead = await supersededEventIds(db, plantId);
-  const { rows } = await db.query<{ event_id: string; payload: unknown }>(
-    `SELECT event_id, payload FROM floor_events WHERE plant_id = $1 AND type = $2`,
+  const { rows } = await db.query<{ event_id: string; payload: unknown; asset_id: string | null; occurred_at: Date }>(
+    `SELECT event_id, payload, asset_id, occurred_at FROM floor_events WHERE plant_id = $1 AND type = $2`,
     [plantId, type],
   );
   let sum = 0;
   for (const row of rows) {
     if (dead.has(row.event_id)) continue;
+    if (scope?.assetId && row.asset_id !== scope.assetId) continue;
+    const t = new Date(row.occurred_at).getTime();
+    if (scope?.from && t < scope.from.getTime()) continue;
+    if (scope?.to && t >= scope.to.getTime()) continue;
     sum += qtyFromPayload(row.payload);
   }
   return sum;

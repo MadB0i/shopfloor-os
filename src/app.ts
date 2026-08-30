@@ -23,6 +23,7 @@ import { pool } from "./db.js";
 import { annotateVoided } from "./effective.js";
 import { isEventType } from "./events/catalog.js";
 import { loadFloor } from "./floor.js";
+import { computeAssetOee, computePlantOee } from "./oee.js";
 import { loadTape } from "./tape.js";
 
 const tokens = tokensFromEnv();
@@ -187,6 +188,41 @@ export async function build() {
     }
     const events = await loadTape(pool, actor.plantId, from, to);
     return { plantId: actor.plantId, events };
+  });
+
+  app.get("/v1/metrics/oee", async (req, reply) => {
+    const actor = actorOf(req);
+    const q = req.query as { from?: string; to?: string; asset?: string };
+    if (!q.from || !q.to) {
+      reply.code(400);
+      return { error: "from and to are required ISO timestamps" };
+    }
+    const from = new Date(q.from);
+    const to = new Date(q.to);
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+      reply.code(400);
+      return { error: "invalid from or to" };
+    }
+    if (from.getTime() >= to.getTime()) {
+      reply.code(400);
+      return { error: "from must be before to" };
+    }
+    if (q.asset) {
+      const exists = await pool.query(`SELECT 1 FROM assets WHERE id = $1 AND plant_id = $2`, [
+        q.asset,
+        actor.plantId,
+      ]);
+      if (!exists.rowCount) {
+        reply.code(404);
+        return { error: "unknown asset" };
+      }
+      return computeAssetOee(pool, actor.plantId, q.asset, from, to);
+    }
+    return {
+      from: from.toISOString(),
+      to: to.toISOString(),
+      assets: await computePlantOee(pool, actor.plantId, from, to),
+    };
   });
 
   await app.register(fastifyStatic, { root: webRoot, prefix: "/" });
