@@ -1,0 +1,59 @@
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+
+jobs:
+  docker-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build images and start stack
+        run: docker compose up -d --build
+
+      # The app service has no container-level healthcheck (only db does), so
+      # poll the real HTTP /health endpoint until it returns HTTP 200 with
+      # {"ok":true,"db":...} — not just "the container is up".
+      - name: Wait for app /health
+        run: |
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /tmp/sfos-health.json -w "%{http_code}" \
+              http://localhost:8787/health 2>/dev/null || echo "000")
+            ok=$(jq -r '.ok // false' /tmp/sfos-health.json 2>/dev/null || echo false)
+            if [ "$code" = "200" ] && [ "$ok" = "true" ]; then
+              echo "app healthy after $((i * 5))s: $(cat /tmp/sfos-health.json)"
+              exit 0
+            fi
+            echo "waiting for /health... attempt $i (http=$code ok=$ok)"
+            sleep 5
+          done
+          echo "app /health never became ready"
+          docker compose logs app
+          exit 1
+
+      # Verify the board payload is actually populated (assets + work orders
+      # present), not just that the server responds. Fails the job otherwise.
+      - name: Check /v1/floor is populated
+        run: |
+          code=$(curl -s -o /tmp/sfos-floor.json -w "%{http_code}" \
+            -H "Authorization: Bearer dev-operator" \
+            http://localhost:8787/v1/floor)
+          if [ "$code" != "200" ]; then
+            echo "GET /v1/floor returned http=$code"
+            cat /tmp/sfos-floor.json
+            exit 1
+          fi
+          assets=$(jq '.assets | length' /tmp/sfos-floor.json)
+          wos=$(jq '.workOrders | length' /tmp/sfos-floor.json)
+          echo "floor: assets=$assets workOrders=$wos"
+          if [ "$assets" -eq 0 ] || [ "$wos" -eq 0 ]; then
+            echo "floor is not populated: assets=$assets workOrders=$wos"
+            cat /tmp/sfos-floor.json
+            exit 1
+          fi
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
