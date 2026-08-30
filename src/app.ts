@@ -28,6 +28,7 @@ import {
   handleCreateWorkOrder,
 } from "./catalog-write.js";
 import { pool } from "./db.js";
+import type { SqlPool } from "./db.js";
 import { annotateVoided } from "./effective.js";
 import { isEventType } from "./events/catalog.js";
 import { eventsToCsv } from "./csv.js";
@@ -49,41 +50,41 @@ function statusOf(err: unknown): number {
 
 type ReqActor = NonNullable<ReturnType<typeof actorFromHeader>>;
 
-async function runCommand(
-  req: { headers: Record<string, unknown>; body: unknown; actor: ReqActor },
-  reply: { code: (n: number) => unknown },
-  fn: (
-    client: import("./db.js").SqlClient,
-    actor: ReqActor,
-    body: unknown,
-    key: string | undefined,
-  ) => Promise<unknown>,
-) {
-  const raw = req.headers["idempotency-key"];
-  const idem = typeof raw === "string" ? raw : undefined;
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
-    const result = await fn(client, req.actor, req.body, idem);
-    await client.query("COMMIT");
-    return result;
-  } catch (err) {
-    await client.query("ROLLBACK");
-    (reply as { code: (n: number) => void }).code(statusOf(err));
-    return { error: err instanceof Error ? err.message : "failed" };
-  } finally {
-    client.release();
-  }
-}
-
-export async function build() {
+export async function build(db: SqlPool = pool) {
   const app = Fastify({ logger: true });
   await app.register(cors, { origin: true });
 
+  async function runCommand(
+    req: { headers: Record<string, unknown>; body: unknown; actor: ReqActor },
+    reply: { code: (n: number) => unknown },
+    fn: (
+      client: import("./db.js").SqlClient,
+      actor: ReqActor,
+      body: unknown,
+      key: string | undefined,
+    ) => Promise<unknown>,
+  ) {
+    const raw = req.headers["idempotency-key"];
+    const idem = typeof raw === "string" ? raw : undefined;
+    const client = await db.connect();
+    try {
+      await client.query("BEGIN");
+      const result = await fn(client, req.actor, req.body, idem);
+      await client.query("COMMIT");
+      return result;
+    } catch (err) {
+      await client.query("ROLLBACK");
+      (reply as { code: (n: number) => void }).code(statusOf(err));
+      return { error: err instanceof Error ? err.message : "failed" };
+    } finally {
+      client.release();
+    }
+  }
+
   app.get("/health", async (_req, reply) => {
     try {
-      await pool.query("SELECT 1 AS ok");
-      return { ok: true, db: pool.kind };
+      await db.query("SELECT 1 AS ok");
+      return { ok: true, db: db.kind };
     } catch (err) {
       reply.code(503);
       return { ok: false, error: err instanceof Error ? err.message : "db" };
@@ -156,7 +157,7 @@ export async function build() {
     fn: (client: import("./db.js").SqlClient, actor: ReqActor, body: unknown) => Promise<unknown>,
   ) => {
     const actor = (req as { actor: ReqActor }).actor;
-    const client = await pool.connect();
+    const client = await db.connect();
     try {
       await client.query("BEGIN");
       const result = await fn(client, actor, req.body);
@@ -187,7 +188,7 @@ export async function build() {
 
   app.get("/v1/floor", async (req, reply) => {
     const actor = actorOf(req);
-    const floor = await loadFloor(pool, actor.plantId);
+    const floor = await loadFloor(db, actor.plantId);
     if (!floor) {
       reply.code(404);
       return { error: "plant not found" };
@@ -202,7 +203,7 @@ export async function build() {
       reply.code(403);
       return { error: "plant mismatch" };
     }
-    const floor = await loadFloor(pool, plantId);
+    const floor = await loadFloor(db, plantId);
     const asset = floor?.assets.find((a) => a.id === assetId);
     if (!asset) {
       reply.code(404);
@@ -214,7 +215,7 @@ export async function build() {
   app.get("/v1/work-orders/:id/timeline", async (req, reply) => {
     const actor = actorOf(req);
     const { id } = req.params as { id: string };
-    const { rows } = await pool.query(
+    const { rows } = await db.query(
       `SELECT event_id, type, schema_version, actor_id, asset_id, operation_id, payload, occurred_at, recorded_at
        FROM floor_events WHERE plant_id = $1 AND work_order_id = $2
        ORDER BY recorded_at ASC, id ASC`,
@@ -226,7 +227,7 @@ export async function build() {
         return { error: `corrupt event type ${row.type}` };
       }
     }
-    return { workOrderId: id, events: await annotateVoided(pool, actor.plantId, rows) };
+    return { workOrderId: id, events: await annotateVoided(db, actor.plantId, rows) };
   });
 
   app.get("/v1/tape", async (req, reply) => {
@@ -246,7 +247,7 @@ export async function build() {
       reply.code(400);
       return { error: "invalid to" };
     }
-    const events = await loadTape(pool, actor.plantId, from, to);
+    const events = await loadTape(db, actor.plantId, from, to);
     return { plantId: actor.plantId, events };
   });
 
@@ -263,7 +264,7 @@ export async function build() {
       reply.code(400);
       return { error: "invalid to" };
     }
-    const events = await loadTape(pool, actor.plantId, from, to, 50_000);
+    const events = await loadTape(db, actor.plantId, from, to, 50_000);
     reply.header("content-type", "text/csv; charset=utf-8");
     reply.header("content-disposition", 'attachment; filename="shopfloor-events.csv"');
     return reply.send(eventsToCsv(events));
@@ -287,7 +288,7 @@ export async function build() {
       return { error: "from must be before to" };
     }
     if (q.asset) {
-      const exists = await pool.query(`SELECT 1 FROM assets WHERE id = $1 AND plant_id = $2`, [
+      const exists = await db.query(`SELECT 1 FROM assets WHERE id = $1 AND plant_id = $2`, [
         q.asset,
         actor.plantId,
       ]);
@@ -295,12 +296,12 @@ export async function build() {
         reply.code(404);
         return { error: "unknown asset" };
       }
-      return computeAssetOee(pool, actor.plantId, q.asset, from, to);
+      return computeAssetOee(db, actor.plantId, q.asset, from, to);
     }
     return {
       from: from.toISOString(),
       to: to.toISOString(),
-      assets: await computePlantOee(pool, actor.plantId, from, to),
+      assets: await computePlantOee(db, actor.plantId, from, to),
     };
   });
 

@@ -11,7 +11,7 @@
     "b0": "tsx src/migrate.ts && tsx src/seed.ts",
     "migrate": "tsx src/migrate.ts",
     "seed": "tsx src/seed.ts",
-    "test": "tsx --test --test-concurrency=1 src/events/catalog.test.ts src/invariants.test.ts src/commands.test.ts src/oee.test.ts src/catalog-write.test.ts src/export.test.ts",
+    "test": "tsx --test --test-concurrency=1 src/events/catalog.test.ts src/invariants.test.ts src/commands.test.ts src/oee.test.ts src/catalog-write.test.ts src/export.test.ts src/http.test.ts",
     "rebuild": "tsx src/rebuild.ts"
   },
   "engines": {
