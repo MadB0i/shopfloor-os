@@ -6,6 +6,20 @@ Every start, pause, scrap count, and downtime reason is an immutable event. Nobo
 
 Not a dashboard clone. Not an MES. The unit of truth is `floor_events` — events are facts, locks and live status are projections.
 
+## What it looks like
+
+The board is a control-room instrument: dark graphite surfaces, color reserved for state (green = running, red = down, amber = hold), monospace data readable from a few feet away.
+
+![The board at a glance: a running press with its job card, a press down with an open downtime, an idle pack bench, and a pending shift handoff](docs/screenshots/board-1600.png)
+
+Each asset tile carries a status rail in its state color; job cards show WO progress against target.
+
+![Stacked layout below 960px — the command panel drops under the asset bay for smaller floor displays](docs/screenshots/board-820.png)
+
+Every display signs in with a role — operator, supervisor, planner, or auditor — and the command pads mirror exactly what that role may do.
+
+![Identity picker with the four seeded roles](docs/screenshots/identity-picker.png)
+
 **License:** MIT · **Repo:** [github.com/MadB0i/shopfloor-os](https://github.com/MadB0i/shopfloor-os)
 
 ## Stack
