@@ -13,6 +13,26 @@ paths:
       responses:
         "200":
           description: process up
+  /v1/me:
+    get:
+      responses:
+        "200":
+          description: identity and capability map for the bearer token
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [userId, plantId, role, can]
+                properties:
+                  userId: { type: string }
+                  plantId: { type: string }
+                  role:
+                    type: string
+                    enum: [operator, supervisor, planner, auditor]
+                  can:
+                    type: object
+                    additionalProperties:
+                      type: boolean
   /v1/commands/run.start:
     post:
       parameters:
@@ -31,6 +51,10 @@ paths:
       responses:
         "200":
           description: event appended or idempotent replay
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandResult"
   /v1/commands/qty.scrap:
     post:
       parameters:
@@ -51,6 +75,10 @@ paths:
       responses:
         "200":
           description: scrap recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandResult"
   /v1/commands/downtime.start:
     post:
       parameters:
@@ -68,6 +96,10 @@ paths:
       responses:
         "200":
           description: downtime opened
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandResult"
   /v1/commands/run.complete:
     post:
       parameters:
@@ -84,6 +116,10 @@ paths:
       responses:
         "200":
           description: run closed, lock released
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandResult"
   /v1/commands/run.pause:
     post:
       parameters:
@@ -100,6 +136,10 @@ paths:
       responses:
         "200":
           description: run paused; lock remains
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandResult"
   /v1/commands/run.resume:
     post:
       parameters:
@@ -116,6 +156,10 @@ paths:
       responses:
         "200":
           description: run resumed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandResult"
   /v1/commands/qty.good:
     post:
       parameters:
@@ -135,6 +179,10 @@ paths:
       responses:
         "200":
           description: good qty recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandResult"
   /v1/commands/downtime.end:
     post:
       parameters:
@@ -151,20 +199,53 @@ paths:
       responses:
         "200":
           description: downtime closed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandResult"
   /v1/commands/handoff.submit:
     post:
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fromShift, toShift]
+              properties:
+                fromShift: { type: string }
+                toShift: { type: string }
+                note: { type: string, maxLength: 500 }
       responses:
         "200":
           description: handoff offered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandResult"
   /v1/commands/handoff.accept:
     post:
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fromShift, toShift]
+              properties:
+                fromShift: { type: string }
+                toShift: { type: string }
       responses:
         "200":
           description: handoff accepted (supervisor/planner)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandResult"
   /v1/commands/handoff.override:
     post:
       parameters:
@@ -183,6 +264,10 @@ paths:
       responses:
         "200":
           description: pending handoff cleared without accept
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandResult"
   /v1/catalog/assets:
     post:
       requestBody:
@@ -199,21 +284,76 @@ paths:
       responses:
         "200":
           description: asset created (planner)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdResult"
   /v1/catalog/reason-codes:
     post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind, code, label]
+              properties:
+                id: { type: string }
+                kind:
+                  type: string
+                  enum: [downtime, scrap]
+                code: { type: string }
+                label: { type: string }
       responses:
         "200":
           description: reason code created (planner)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdResult"
   /v1/catalog/work-orders:
     post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, targetQty]
+              properties:
+                id: { type: string }
+                code: { type: string }
+                targetQty: { type: integer, minimum: 0 }
+                dueAt: { type: string, format: date-time }
       responses:
         "200":
           description: work order created; emits work_order.opened
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkOrderIdResult"
   /v1/catalog/operations:
     post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [workOrderId, seq, name]
+              properties:
+                id: { type: string }
+                workOrderId: { type: string }
+                seq: { type: integer, minimum: 1 }
+                name: { type: string }
+                defaultAssetId: { type: string }
       responses:
         "200":
           description: routing step created (planner)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdResult"
   /v1/catalog/shifts:
     post:
       requestBody:
@@ -232,6 +372,10 @@ paths:
       responses:
         "200":
           description: shift created (planner)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdResult"
   /v1/commands/record.correct:
     post:
       parameters:
@@ -249,6 +393,10 @@ paths:
       responses:
         "200":
           description: correction appended; original row unchanged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandResult"
   /v1/tape:
     get:
       parameters:
@@ -330,6 +478,27 @@ paths:
             text/csv:
               schema: { type: string }
 components:
+  schemas:
+    CommandResult:
+      type: object
+      description: Result of an append-only command. replayed is true when the Idempotency-Key matched a prior request.
+      required: [eventId, replayed]
+      properties:
+        eventId: { type: string }
+        replayed: { type: boolean }
+    IdResult:
+      type: object
+      description: Result of a planner catalog write that returns an id.
+      required: [id]
+      properties:
+        id: { type: string }
+    WorkOrderIdResult:
+      type: object
+      description: Result of creating a work order; also emits work_order.opened.
+      required: [id, eventId]
+      properties:
+        id: { type: string }
+        eventId: { type: string }
   parameters:
     IdempotencyKey:
       name: Idempotency-Key
