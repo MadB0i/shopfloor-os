@@ -1,4 +1,4 @@
-import assert from "node:assert/strict";
+﻿import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import { csvField, eventsToCsv } from "./csv.js";
 import { appendEvent } from "./events/store.js";
@@ -48,25 +48,25 @@ test("csv export keeps voided qty rows and the correction", async () => {
   let scrapId = "";
   await tx(db, async (c) => {
     scrapId = await appendEvent(c, {
-      plantId: "PL-DEMO",
+      plantId: "PL-RIVERBEND",
       type: "qty.scrap_recorded",
       actorId: "U-OP-1",
       assetId: "M-PRESS-01",
-      workOrderId: "WO-24-0841",
+      workOrderId: "WO-26-0841",
       operationId: "OP-0841-1",
       payload: { qty: 4, reasonCode: "DIM-OOS" },
     });
     await appendEvent(c, {
-      plantId: "PL-DEMO",
+      plantId: "PL-RIVERBEND",
       type: "record.corrected",
       actorId: "U-OP-1",
       assetId: "M-PRESS-01",
-      workOrderId: "WO-24-0841",
+      workOrderId: "WO-26-0841",
       operationId: "OP-0841-1",
       payload: { replacesEventId: scrapId, reason: "miscount" },
     });
   });
-  const rows = await loadTape(db, "PL-DEMO");
+  const rows = await loadTape(db, "PL-RIVERBEND");
   const csv = eventsToCsv(rows);
   assert.match(csv, /^event_id,type,schema_version,/);
   assert.match(csv, /qty\.scrap_recorded/);

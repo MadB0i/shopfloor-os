@@ -4,10 +4,11 @@
 const urlToken = new URLSearchParams(location.search).get("token");
 if (urlToken) localStorage.setItem("sfos.token", urlToken.trim());
 
-const plantEl = document.querySelector("#plant");
 const clockEl = document.querySelector("#clock");
 const linkEl = document.querySelector("#link");
 const handoffEl = document.querySelector("#handoff");
+const facNameEl = document.querySelector("#facName");
+const facCodeEl = document.querySelector("#facCode");
 const assetsEl = document.querySelector("#assets");
 const tapeEl = document.querySelector("#tape");
 const selectedEl = document.querySelector("#selected");
@@ -32,9 +33,9 @@ const customApplyEl = document.querySelector("#customApply");
 // docker-compose.yml) mapped to the users seeded in seed-plant.ts. The static
 // bearer-token model is intentional for the demo — this is a picker, not auth.
 const IDENTITIES = [
-  { token: "dev-operator", role: "operator", name: "Rina", note: "records runs, qty, downtime" },
-  { token: "dev-supervisor", role: "supervisor", name: "Kamal", note: "accepts / overrides handoff" },
-  { token: "dev-planner", role: "planner", name: "Meera", note: "runs floor + writes catalog" },
+  { token: "dev-operator", role: "operator", name: "Rina Okafor", note: "records runs, qty, downtime" },
+  { token: "dev-supervisor", role: "supervisor", name: "Kamal Reyes", note: "accepts / overrides handoff" },
+  { token: "dev-planner", role: "planner", name: "Meera Iyer", note: "runs floor + writes catalog" },
   { token: "dev-auditor", role: "auditor", name: "Audit desk", note: "read-only, full tape" },
 ];
 
@@ -169,7 +170,8 @@ async function load() {
     }
     floor = await res.json();
     linkEl.dataset.state = "ok";
-    plantEl.textContent = `${floor.plant.id}  ${floor.plant.name}`;
+    facNameEl.textContent = floor.plant.name;
+    facCodeEl.textContent = floor.plant.id;
     if (floor.handoff?.pending) {
       handoffEl.dataset.state = "wait";
       handoffEl.textContent = `HO ${floor.handoff.fromShift}>${floor.handoff.toShift}`;
@@ -207,6 +209,8 @@ function renderAssets() {
   for (const a of floor.assets) {
     const card = document.createElement("article");
     card.className = "asset";
+    const state = a.openDowntime ? "down" : a.openRun ? (a.openRun.paused ? "paused" : "run") : "idle";
+    card.dataset.state = state;
     card.tabIndex = 0;
     card.ariaSelected = a.id === selectedAsset ? "true" : "false";
     card.addEventListener("click", () => {
@@ -218,7 +222,10 @@ function renderAssets() {
     const downOn = Boolean(a.openDowntime);
     const s = oeeById[a.id];
     card.innerHTML = `
-      <div class="code">${a.code}</div>
+      <div class="asset-top">
+        <span class="code">${a.code}</span>
+        <span class="asset-state">${{ run: "RUN", down: "DOWN", paused: "HOLD", idle: "IDLE" }[state]}</span>
+      </div>
       <div class="name">${a.name}</div>
       <div class="lamps">
         <div class="lamp ${runOn ? "on-run" : ""}">RUN</div>
@@ -269,16 +276,17 @@ function renderJobs() {
       const lastOp = floor.operations.filter((o) => o.work_order_id === wo.id).sort((a, b) => b.seq - a.seq)[0];
       opName = lastOp ? `OP-${lastOp.seq} ${lastOp.name}` : "";
     }
+    const due = wo.due_at ? ` · DUE ${new Date(wo.due_at).toISOString().slice(5, 10)}` : "";
 
     card.innerHTML = `
       <div class="jobhead">
         <span class="jocode">${wo.code}</span>
         <span class="jostatus ${statusCls}">${status}</span>
       </div>
-      <div class="joop">${opName}${assetCode ? " on " + assetCode : ""}</div>
+      <div class="joop">${opName}${assetCode ? " on " + assetCode : ""}${due}</div>
       <div class="joprogress">
         <div class="jobar"><div class="jofill ${statusCls}" style="width:${pct}%"></div></div>
-        <span class="joqty">${good} / ${target}</span>
+        <span class="joqty">${good}<span class="joqty-target">/${target}</span></span>
       </div>
     `;
     el.append(card);
@@ -395,4 +403,5 @@ document.querySelector(".pads").addEventListener("click", async (ev) => {
 
 setInterval(load, 2500);
 load();
+
 

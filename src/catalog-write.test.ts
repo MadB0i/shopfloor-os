@@ -1,4 +1,4 @@
-import assert from "node:assert/strict";
+﻿import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import {
   handleCreateAsset,
@@ -12,8 +12,8 @@ import { applyMigrations } from "./schema.js";
 import { seedPlant } from "./seed-plant.js";
 import { createPoolFromUrl, type SqlClient, type SqlPool } from "./sql.js";
 
-const planner: Actor = { userId: "U-PL-1", plantId: "PL-DEMO", role: "planner" };
-const operator: Actor = { userId: "U-OP-1", plantId: "PL-DEMO", role: "operator" };
+const planner: Actor = { userId: "U-PL-1", plantId: "PL-RIVERBEND", role: "planner" };
+const operator: Actor = { userId: "U-OP-1", plantId: "PL-RIVERBEND", role: "operator" };
 
 let pool: SqlPool | undefined;
 

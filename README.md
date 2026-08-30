@@ -1,4 +1,4 @@
-# ShopFloor OS
+﻿# ShopFloor OS
 
 A factory **black box** — an append-only event log for press shops, packing cells, and job-work floors.
 
@@ -41,7 +41,7 @@ Open [http://localhost:8787/](http://localhost:8787/) — token field: `dev-oper
 | Shift handoff gate | submit blocks `run.start` until ACK or SKIP |
 | Planner catalog | `POST /v1/catalog/...` |
 
-Demo plant: **PL-DEMO** (three assets, one work order, coded downtime/scrap reasons, seeded events showing an active run, open downtime, and a pending handoff).
+Seed plant: **PL-RIVERBEND** (three assets, one work order, coded downtime/scrap reasons, seeded events showing an active run, open downtime, and a pending handoff).
 
 ## Architecture
 
@@ -75,13 +75,13 @@ curl -s -X POST http://localhost:8787/v1/commands/run.start \
   -H "Authorization: Bearer dev-operator" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: run-1" \
-  -d '{"assetId":"M-PRESS-01","workOrderId":"WO-24-0841","operationId":"OP-0841-1"}'
+  -d '{"assetId":"M-PRESS-01","workOrderId":"WO-26-0841","operationId":"OP-0841-1"}'
 
 # Record good qty
 curl -s -X POST http://localhost:8787/v1/commands/qty.good \
   -H "Authorization: Bearer dev-operator" \
   -H "Content-Type: application/json" \
-  -d '{"assetId":"M-PRESS-01","workOrderId":"WO-24-0841","operationId":"OP-0841-1","qty":50}'
+  -d '{"assetId":"M-PRESS-01","workOrderId":"WO-26-0841","operationId":"OP-0841-1","qty":50}'
 
 # Export raw event CSV
 curl -s "http://localhost:8787/v1/export/events.csv" \

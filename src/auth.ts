@@ -1,26 +1,26 @@
-export type TokenMap = Record<string, { userId: string; plantId: string; role: ActorRole }>;
+﻿export type TokenMap = Record<string, { userId: string; plantId: string; role: ActorRole }>;
 export type ActorRole = "operator" | "supervisor" | "planner" | "auditor";
 
 export function tokensFromEnv(): TokenMap {
   return {
     [process.env.OPERATOR_TOKEN ?? "dev-operator"]: {
       userId: "U-OP-1",
-      plantId: "PL-DEMO",
+      plantId: "PL-RIVERBEND",
       role: "operator",
     },
     [process.env.SUPERVISOR_TOKEN ?? "dev-supervisor"]: {
       userId: "U-SUP-1",
-      plantId: "PL-DEMO",
+      plantId: "PL-RIVERBEND",
       role: "supervisor",
     },
     [process.env.PLANNER_TOKEN ?? "dev-planner"]: {
       userId: "U-PL-1",
-      plantId: "PL-DEMO",
+      plantId: "PL-RIVERBEND",
       role: "planner",
     },
     [process.env.AUDITOR_TOKEN ?? "dev-auditor"]: {
       userId: "U-AUD-1",
-      plantId: "PL-DEMO",
+      plantId: "PL-RIVERBEND",
       role: "auditor",
     },
   };

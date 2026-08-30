@@ -1,4 +1,4 @@
-import assert from "node:assert/strict";
+﻿import assert from "node:assert/strict";
 import { after, afterEach, test } from "node:test";
 import type { FastifyInstance } from "fastify";
 import { build } from "./app.js";
@@ -65,7 +65,7 @@ test("GET /v1/me returns identity and capability map", async () => {
   assert.equal(res.statusCode, 200);
   const me = res.json();
   assert.equal(me.userId, "U-OP-1");
-  assert.equal(me.plantId, "PL-DEMO");
+  assert.equal(me.plantId, "PL-RIVERBEND");
   assert.equal(me.role, "operator");
   assert.equal(me.can["run.write"], true);
   assert.equal(me.can["tape.read"], false);
@@ -76,7 +76,7 @@ test("GET /v1/floor returns populated assets and work orders", async () => {
   const res = await a.inject({ method: "GET", url: "/v1/floor", headers: OPERATOR });
   assert.equal(res.statusCode, 200);
   const floor = res.json();
-  assert.equal(floor.plant.id, "PL-DEMO");
+  assert.equal(floor.plant.id, "PL-RIVERBEND");
   assert.ok(floor.assets.length >= 3, "expected at least 3 assets");
   assert.ok(floor.workOrders.length >= 1, "expected at least 1 work order");
   assert.ok(floor.operations.length >= 1, "expected at least 1 operation");
@@ -84,14 +84,14 @@ test("GET /v1/floor returns populated assets and work orders", async () => {
   const running = floor.assets.find((a2: { id: string }) => a2.id === "M-PRESS-01");
   assert.ok(running.openRun, "M-PRESS-01 should have an open run from seed");
   const goodQty = floor.workOrders[0].goodQty;
-  assert.equal(goodQty, 100, "seed good qty for WO-24-0841 is 100");
+  assert.equal(goodQty, 100, "seed good qty for WO-26-0841 is 100");
 });
 
 test("GET /v1/plants/:p/assets/:a/live returns open run/downtime", async () => {
   const a = await start();
   const res = await a.inject({
     method: "GET",
-    url: "/v1/plants/PL-DEMO/assets/M-PRESS-01/live",
+    url: "/v1/plants/PL-RIVERBEND/assets/M-PRESS-01/live",
     headers: OPERATOR,
   });
   assert.equal(res.statusCode, 200);
@@ -115,12 +115,12 @@ test("GET /v1/work-orders/:id/timeline returns events", async () => {
   const a = await start();
   const res = await a.inject({
     method: "GET",
-    url: "/v1/work-orders/WO-24-0841/timeline",
+    url: "/v1/work-orders/WO-26-0841/timeline",
     headers: OPERATOR,
   });
   assert.equal(res.statusCode, 200);
   const body = res.json();
-  assert.equal(body.workOrderId, "WO-24-0841");
+  assert.equal(body.workOrderId, "WO-26-0841");
   assert.ok(body.events.length >= 1, "expected events on the timeline");
 });
 

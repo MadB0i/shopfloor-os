@@ -1,9 +1,9 @@
-import { pool } from "./db.js";
+﻿import { pool } from "./db.js";
 import { seedPlant } from "./seed-plant.js";
 
 async function main() {
   await seedPlant(pool);
-  process.stdout.write("seeded PL-DEMO\n");
+  process.stdout.write("seeded PL-RIVERBEND\n");
   await pool.end();
 }
 

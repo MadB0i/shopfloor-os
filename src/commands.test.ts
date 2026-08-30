@@ -1,4 +1,4 @@
-import assert from "node:assert/strict";
+﻿import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import { canReadFullTape, capabilitiesFor } from "./auth.js";
 import { authorize, handleCompleteRun, handleCorrect, handleDowntimeEnd, handleDowntimeStart, handleGood, handleHandoffAccept, handleHandoffOverride, handleHandoffSubmit, handlePauseRun, handleResumeRun, handleScrap, handleStartRun, HttpError, type Actor } from "./commands.js";
@@ -10,13 +10,13 @@ import { applyMigrations } from "./schema.js";
 import { seedPlant } from "./seed-plant.js";
 import { createPoolFromUrl, type SqlClient, type SqlPool } from "./sql.js";
 
-const operator: Actor = { userId: "U-OP-1", plantId: "PL-DEMO", role: "operator" };
-const supervisor: Actor = { userId: "U-SUP-1", plantId: "PL-DEMO", role: "supervisor" };
-const auditor: Actor = { userId: "U-AUD-1", plantId: "PL-DEMO", role: "auditor" };
+const operator: Actor = { userId: "U-OP-1", plantId: "PL-RIVERBEND", role: "operator" };
+const supervisor: Actor = { userId: "U-SUP-1", plantId: "PL-RIVERBEND", role: "supervisor" };
+const auditor: Actor = { userId: "U-AUD-1", plantId: "PL-RIVERBEND", role: "auditor" };
 
 const startBody = {
   assetId: "M-PRESS-01",
-  workOrderId: "WO-24-0841",
+  workOrderId: "WO-26-0841",
   operationId: "OP-0841-1",
 };
 
@@ -140,7 +140,7 @@ test("skip-ahead run.start is 409 until the previous operation is complete", asy
           operator,
           {
             assetId: "M-PRESS-02",
-            workOrderId: "WO-24-0841",
+            workOrderId: "WO-26-0841",
             operationId: "OP-0841-2",
           },
           undefined,
@@ -180,7 +180,7 @@ test("seq 2 can start after seq 1 is completed", async () => {
       operator,
       {
         assetId: "M-PRESS-02",
-        workOrderId: "WO-24-0841",
+        workOrderId: "WO-26-0841",
         operationId: "OP-0841-2",
       },
       undefined,
@@ -201,7 +201,7 @@ test("pause keeps the lock; resume clears paused; complete still works from hold
   const db = await freshPlant();
   await tx(db, (c) => handleStartRun(c, operator, startBody, undefined));
   await tx(db, (c) => handlePauseRun(c, operator, { assetId: "M-PRESS-01" }, undefined));
-  const held = await loadFloor(db, "PL-DEMO");
+  const held = await loadFloor(db, "PL-RIVERBEND");
   const press = held?.assets.find((a) => a.id === "M-PRESS-01");
   assert.equal(press?.openRun?.paused, true);
   await assert.rejects(
@@ -209,12 +209,12 @@ test("pause keeps the lock; resume clears paused; complete still works from hold
     (err: unknown) => statusOf(err) === 409,
   );
   await tx(db, (c) => handleResumeRun(c, operator, { assetId: "M-PRESS-01" }, undefined));
-  const going = await loadFloor(db, "PL-DEMO");
+  const going = await loadFloor(db, "PL-RIVERBEND");
   assert.equal(going?.assets.find((a) => a.id === "M-PRESS-01")?.openRun?.paused, false);
   await tx(db, (c) => handlePauseRun(c, operator, { assetId: "M-PRESS-01" }, undefined));
   const done = await tx(db, (c) => handleCompleteRun(c, operator, { assetId: "M-PRESS-01" }, undefined));
   assert.equal(done.replayed, false);
-  const idle = await loadFloor(db, "PL-DEMO");
+  const idle = await loadFloor(db, "PL-RIVERBEND");
   assert.equal(idle?.assets.find((a) => a.id === "M-PRESS-01")?.openRun, null);
 });
 
@@ -233,13 +233,13 @@ test("correction voids qty for totals without deleting the original row", async 
   const scrap = await tx(db, (c) =>
     handleScrap(c, operator, { ...startBody, qty: 12, reasonCode: "DIM-OOS" }, undefined),
   );
-  assert.equal(await effectiveQtySum(db, "PL-DEMO", "qty.scrap_recorded"), 12);
+  assert.equal(await effectiveQtySum(db, "PL-RIVERBEND", "qty.scrap_recorded"), 12);
   await tx(db, (c) =>
     handleCorrect(c, operator, { replacesEventId: scrap.eventId, reason: "miscount" }, undefined),
   );
   const still = await db.query(`SELECT 1 FROM floor_events WHERE event_id = $1`, [scrap.eventId]);
   assert.equal(still.rowCount, 1);
-  assert.equal(await effectiveQtySum(db, "PL-DEMO", "qty.scrap_recorded"), 0);
+  assert.equal(await effectiveQtySum(db, "PL-RIVERBEND", "qty.scrap_recorded"), 0);
   await assert.rejects(
     () =>
       tx(db, (c) =>
@@ -279,7 +279,7 @@ test("full tape is auditor-only", () => {
   assert.equal(canReadFullTape("planner"), false);
 });
 
-const planner: Actor = { userId: "U-PL-1", plantId: "PL-DEMO", role: "planner" };
+const planner: Actor = { userId: "U-PL-1", plantId: "PL-RIVERBEND", role: "planner" };
 
 test("authorize is the single guard: capabilities per role", () => {
   // run.write — everyone but auditor
@@ -337,11 +337,11 @@ test("good qty is counted; tape marks voided scrap", async () => {
   await tx(db, (c) =>
     handleCorrect(c, operator, { replacesEventId: scrap.eventId, reason: "miscount" }, undefined),
   );
-  assert.equal(await effectiveQtySum(db, "PL-DEMO", "qty.good_recorded"), 8);
-  const tape = await loadTape(db, "PL-DEMO");
+  assert.equal(await effectiveQtySum(db, "PL-RIVERBEND", "qty.good_recorded"), 8);
+  const tape = await loadTape(db, "PL-RIVERBEND");
   const voided = tape.find((e) => e.event_id === scrap.eventId);
   assert.equal(voided?.voided, true);
-  const future = await loadTape(db, "PL-DEMO", new Date("2099-01-01T00:00:00Z"));
+  const future = await loadTape(db, "PL-RIVERBEND", new Date("2099-01-01T00:00:00Z"));
   assert.equal(future.length, 0);
 });
 
@@ -361,7 +361,7 @@ const shifts = { fromShift: "A", toShift: "B" };
 test("pending handoff blocks run.start until accept", async () => {
   const db = await freshPlant();
   await tx(db, (c) => handleHandoffSubmit(c, operator, { ...shifts, note: "eod" }, undefined));
-  const floor = await loadFloor(db, "PL-DEMO");
+  const floor = await loadFloor(db, "PL-RIVERBEND");
   assert.equal(floor?.handoff.pending, true);
   await assert.rejects(
     () => tx(db, (c) => handleStartRun(c, operator, startBody, undefined)),

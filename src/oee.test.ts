@@ -1,4 +1,4 @@
-import assert from "node:assert/strict";
+﻿import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import { appendEvent } from "./events/store.js";
 import { computeAssetOee } from "./oee.js";
@@ -42,7 +42,7 @@ const to = new Date("2026-08-30T11:00:00.000Z");
 
 test("empty window: availability 1, performance and quality omitted", async () => {
   const db = await freshPlant();
-  const score = await computeAssetOee(db, "PL-DEMO", "M-PRESS-01", from, to);
+  const score = await computeAssetOee(db, "PL-RIVERBEND", "M-PRESS-01", from, to);
   assert.equal(score.availability, 1);
   assert.equal(score.performance, null);
   assert.equal(score.quality, null);
@@ -53,7 +53,7 @@ test("15 minutes downtime in a 60 minute window is availability 0.75", async () 
   const db = await freshPlant();
   await tx(db, async (c) => {
     await appendEvent(c, {
-      plantId: "PL-DEMO",
+      plantId: "PL-RIVERBEND",
       type: "downtime.started",
       actorId: "U-OP-1",
       assetId: "M-PRESS-01",
@@ -61,7 +61,7 @@ test("15 minutes downtime in a 60 minute window is availability 0.75", async () 
       payload: { reasonCode: "BREAKDOWN" },
     });
     await appendEvent(c, {
-      plantId: "PL-DEMO",
+      plantId: "PL-RIVERBEND",
       type: "downtime.ended",
       actorId: "U-OP-1",
       assetId: "M-PRESS-01",
@@ -69,7 +69,7 @@ test("15 minutes downtime in a 60 minute window is availability 0.75", async () 
       payload: {},
     });
   });
-  const score = await computeAssetOee(db, "PL-DEMO", "M-PRESS-01", from, to);
+  const score = await computeAssetOee(db, "PL-RIVERBEND", "M-PRESS-01", from, to);
   assert.equal(score.availability, 0.75);
   assert.equal(score.parts.downtimeMs, 15 * 60 * 1000);
 });
@@ -78,37 +78,37 @@ test("quality uses effective qty; voided scrap is ignored", async () => {
   const db = await freshPlant();
   await tx(db, async (c) => {
     const scrapId = await appendEvent(c, {
-      plantId: "PL-DEMO",
+      plantId: "PL-RIVERBEND",
       type: "qty.scrap_recorded",
       actorId: "U-OP-1",
       assetId: "M-PRESS-01",
-      workOrderId: "WO-24-0841",
+      workOrderId: "WO-26-0841",
       operationId: "OP-0841-1",
       occurredAt: new Date("2026-08-30T10:20:00.000Z"),
       payload: { qty: 2, reasonCode: "DIM-OOS" },
     });
     await appendEvent(c, {
-      plantId: "PL-DEMO",
+      plantId: "PL-RIVERBEND",
       type: "qty.good_recorded",
       actorId: "U-OP-1",
       assetId: "M-PRESS-01",
-      workOrderId: "WO-24-0841",
+      workOrderId: "WO-26-0841",
       operationId: "OP-0841-1",
       occurredAt: new Date("2026-08-30T10:21:00.000Z"),
       payload: { qty: 8 },
     });
     await appendEvent(c, {
-      plantId: "PL-DEMO",
+      plantId: "PL-RIVERBEND",
       type: "record.corrected",
       actorId: "U-OP-1",
       assetId: "M-PRESS-01",
-      workOrderId: "WO-24-0841",
+      workOrderId: "WO-26-0841",
       operationId: "OP-0841-1",
       occurredAt: new Date("2026-08-30T10:22:00.000Z"),
       payload: { replacesEventId: scrapId, reason: "miscount" },
     });
   });
-  const score = await computeAssetOee(db, "PL-DEMO", "M-PRESS-01", from, to);
+  const score = await computeAssetOee(db, "PL-RIVERBEND", "M-PRESS-01", from, to);
   assert.equal(score.quality, 1);
   assert.equal(score.parts.good, 8);
   assert.equal(score.parts.scrap, 0);
@@ -118,27 +118,27 @@ test("performance is good/target only when a single WO ran on the asset", async 
   const db = await freshPlant();
   await tx(db, async (c) => {
     await appendEvent(c, {
-      plantId: "PL-DEMO",
+      plantId: "PL-RIVERBEND",
       type: "run.started",
       actorId: "U-OP-1",
       assetId: "M-PRESS-01",
-      workOrderId: "WO-24-0841",
+      workOrderId: "WO-26-0841",
       operationId: "OP-0841-1",
       occurredAt: new Date("2026-08-30T10:05:00.000Z"),
       payload: {},
     });
     await appendEvent(c, {
-      plantId: "PL-DEMO",
+      plantId: "PL-RIVERBEND",
       type: "qty.good_recorded",
       actorId: "U-OP-1",
       assetId: "M-PRESS-01",
-      workOrderId: "WO-24-0841",
+      workOrderId: "WO-26-0841",
       operationId: "OP-0841-1",
       occurredAt: new Date("2026-08-30T10:30:00.000Z"),
       payload: { qty: 50 },
     });
   });
-  const score = await computeAssetOee(db, "PL-DEMO", "M-PRESS-01", from, to);
+  const score = await computeAssetOee(db, "PL-RIVERBEND", "M-PRESS-01", from, to);
   assert.equal(score.parts.targetQty, 500);
   assert.equal(score.performance, 0.1);
   assert.equal(score.quality, 1);

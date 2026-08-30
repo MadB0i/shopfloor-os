@@ -1,18 +1,18 @@
-import type { SqlClient, SqlPool } from "./sql.js";
+﻿import type { SqlClient, SqlPool } from "./sql.js";
 import { appendEvent } from "./events/store.js";
 
-const plant = "PL-DEMO";
+const plant = "PL-RIVERBEND";
 
 async function insertCatalog(client: SqlClient) {
   await client.query(`INSERT INTO plants (id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [
     plant,
-    "Demo press shop",
+    "Riverbend Stamping & Pack",
   ]);
   await client.query(
     `INSERT INTO users (id, display_name) VALUES
-      ('U-OP-1', 'Rina (operator)'),
-      ('U-SUP-1', 'Kamal (supervisor)'),
-      ('U-PL-1', 'Meera (planner)'),
+      ('U-OP-1', 'Rina Okafor (operator)'),
+      ('U-SUP-1', 'Kamal Reyes (supervisor)'),
+      ('U-PL-1', 'Meera Iyer (planner)'),
       ('U-AUD-1', 'Audit desk')
      ON CONFLICT DO NOTHING`,
   );
@@ -45,15 +45,15 @@ async function insertCatalog(client: SqlClient) {
   );
   await client.query(
     `INSERT INTO work_orders (id, plant_id, code, due_at, target_qty) VALUES
-      ('WO-24-0841', $1, 'WO-24-0841', now() + interval '3 days', 500)
+      ('WO-26-0841', $1, 'WO-26-0841', now() + interval '3 days', 500)
      ON CONFLICT DO NOTHING`,
     [plant],
   );
   await client.query(
     `INSERT INTO operations (id, work_order_id, seq, name, default_asset_id) VALUES
-      ('OP-0841-1', 'WO-24-0841', 1, 'Blank', 'M-PRESS-01'),
-      ('OP-0841-2', 'WO-24-0841', 2, 'Form', 'M-PRESS-02'),
-      ('OP-0841-3', 'WO-24-0841', 3, 'Pack', 'M-PACK-01')
+      ('OP-0841-1', 'WO-26-0841', 1, 'Blank', 'M-PRESS-01'),
+      ('OP-0841-2', 'WO-26-0841', 2, 'Form', 'M-PRESS-02'),
+      ('OP-0841-3', 'WO-26-0841', 3, 'Pack', 'M-PACK-01')
      ON CONFLICT DO NOTHING`,
   );
   await client.query(
@@ -75,7 +75,7 @@ async function insertDemoEvents(client: SqlClient) {
 
   const t = (minsAgo: number) => new Date(Date.now() - minsAgo * 60_000);
 
-  // ── M-PRESS-01: active run on WO-24-0841 / OP-0841-1 ──
+  // ── M-PRESS-01: active run on WO-26-0841 / OP-0841-1 ──
 
   const run1 = await appendEvent(client, {
     eventId: "seed-run-press01",
@@ -83,7 +83,7 @@ async function insertDemoEvents(client: SqlClient) {
     type: "run.started",
     actorId: "U-OP-1",
     assetId: "M-PRESS-01",
-    workOrderId: "WO-24-0841",
+    workOrderId: "WO-26-0841",
     operationId: "OP-0841-1",
     occurredAt: t(120),
   });
@@ -98,7 +98,7 @@ async function insertDemoEvents(client: SqlClient) {
     type: "qty.good_recorded",
     actorId: "U-OP-1",
     assetId: "M-PRESS-01",
-    workOrderId: "WO-24-0841",
+    workOrderId: "WO-26-0841",
     operationId: "OP-0841-1",
     payload: { qty: 50 },
     occurredAt: t(110),
@@ -109,7 +109,7 @@ async function insertDemoEvents(client: SqlClient) {
     type: "qty.good_recorded",
     actorId: "U-OP-1",
     assetId: "M-PRESS-01",
-    workOrderId: "WO-24-0841",
+    workOrderId: "WO-26-0841",
     operationId: "OP-0841-1",
     payload: { qty: 30 },
     occurredAt: t(80),
@@ -120,7 +120,7 @@ async function insertDemoEvents(client: SqlClient) {
     type: "qty.scrap_recorded",
     actorId: "U-OP-1",
     assetId: "M-PRESS-01",
-    workOrderId: "WO-24-0841",
+    workOrderId: "WO-26-0841",
     operationId: "OP-0841-1",
     payload: { qty: 3, reasonCode: "DIM-OOS" },
     occurredAt: t(60),
@@ -131,7 +131,7 @@ async function insertDemoEvents(client: SqlClient) {
     type: "record.corrected",
     actorId: "U-SUP-1",
     assetId: "M-PRESS-01",
-    workOrderId: "WO-24-0841",
+    workOrderId: "WO-26-0841",
     operationId: "OP-0841-1",
     payload: { replacesEventId: scrapEvt, reason: "Miscount — supervisor verified 1 scrap, not 3" },
     occurredAt: t(50),
@@ -142,7 +142,7 @@ async function insertDemoEvents(client: SqlClient) {
     type: "qty.good_recorded",
     actorId: "U-OP-1",
     assetId: "M-PRESS-01",
-    workOrderId: "WO-24-0841",
+    workOrderId: "WO-26-0841",
     operationId: "OP-0841-1",
     payload: { qty: 20 },
     occurredAt: t(15),
@@ -155,7 +155,7 @@ async function insertDemoEvents(client: SqlClient) {
     type: "run.started",
     actorId: "U-OP-1",
     assetId: "M-PRESS-02",
-    workOrderId: "WO-24-0841",
+    workOrderId: "WO-26-0841",
     operationId: "OP-0841-2",
     occurredAt: t(300),
   });
@@ -165,7 +165,7 @@ async function insertDemoEvents(client: SqlClient) {
     type: "run.completed",
     actorId: "U-OP-1",
     assetId: "M-PRESS-02",
-    workOrderId: "WO-24-0841",
+    workOrderId: "WO-26-0841",
     operationId: "OP-0841-2",
     payload: { startedEventId: run2 },
     occurredAt: t(240),
@@ -189,8 +189,8 @@ async function insertDemoEvents(client: SqlClient) {
     payload: {
       fromShift: "A",
       toShift: "B",
-      note: "Press 02 down waiting on blanks. Press 01 running WO-24-0841.",
-      openRuns: [{ assetId: "M-PRESS-01", workOrderId: "WO-24-0841" }],
+      note: "Press 02 down waiting on blanks. Press 01 running WO-26-0841.",
+      openRuns: [{ assetId: "M-PRESS-01", workOrderId: "WO-26-0841" }],
       openDowntime: [{ assetId: "M-PRESS-02", reasonCode: "WAIT-MATERIAL" }],
     },
     occurredAt: t(30),

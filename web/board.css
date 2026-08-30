@@ -1,13 +1,48 @@
+/* ───────────────────────────────────────────────────────────────────────────
+   ShopFloor OS — board styles
+
+   Design language: ISA-101-style high-performance HMI, refined for 2026.
+   Neutral graphite surfaces carry no meaning; color is reserved for state
+   (green = running, oxide = down, amber = hold/handoff, grey = idle).
+   All data is monospace for at-a-glance readability from a few feet away.
+   Primary data (status, WO progress) is large and bright; secondary data
+   (timestamps, reason codes, OEE factors) is small and dim. Glow appears
+   only on live states — never as decoration.
+   ─────────────────────────────────────────────────────────────────────────── */
+
 :root {
-  --bg: #1a1b17;
-  --panel: #24251f;
-  --ink: #cfc9b8;
-  --mute: #7a7668;
-  --line: #3e4036;
-  --yellow: #d9b63a;
-  --oxide: #b1432e;
-  --crt: #7ecb55;
-  --warn: #c9a227;
+  /* surfaces — cool graphite, four elevation steps */
+  --bg: #0e1012;
+  --surface-1: #14171a;   /* mast, command panel, jobs/tape rails */
+  --surface-2: #1b1f24;   /* asset tiles, job cards */
+  --surface-3: #23282e;   /* controls, buttons, wells */
+  --well: #0a0c0e;        /* inputs, bar tracks, tape background */
+
+  /* lines */
+  --line: #262c33;
+  --line-strong: #38414b;
+
+  /* text */
+  --text: #e8ecef;
+  --text-dim: #a6adb5;
+  --text-mute: #737d87;
+
+  /* state — the only saturated colors on the board */
+  --run: #3fd68c;
+  --run-dim: rgba(63, 214, 140, 0.14);
+  --run-glow: 0 0 12px -2px rgba(63, 214, 140, 0.45);
+  --down: #e5584e;
+  --down-glow: 0 0 12px -2px rgba(229, 88, 78, 0.45);
+  --hold: #ffb224;
+  --hold-dim: rgba(255, 178, 36, 0.14);
+  --hold-glow: 0 0 12px -2px rgba(255, 178, 36, 0.4);
+
+  /* chrome accent — safety yellow, identity + selection only */
+  --accent: #ffd24d;
+
+  --font-ui: "Segoe UI", "Inter", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Cascadia Mono", "JetBrains Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
+
   color-scheme: dark;
 }
 
@@ -20,9 +55,9 @@ body {
   margin: 0;
   min-height: 100%;
   background: var(--bg);
-  color: var(--ink);
-  font-family: "Arial Narrow", "Liberation Sans Narrow", "Nimbus Sans Narrow", sans-serif;
-  letter-spacing: 0.04em;
+  color: var(--text);
+  font-family: var(--font-ui);
+  letter-spacing: 0.02em;
 }
 
 body {
@@ -32,65 +67,113 @@ body {
   min-height: 100vh;
 }
 
+/* micro-label: uppercase, tracked, muted — the voice of section headers */
+.stencil h1,
+.tape h2,
+.jobs h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--text-mute);
+  text-transform: uppercase;
+}
+
+.stencil h1::before,
+.tape h2::before,
+.jobs h2::before {
+  content: "";
+  width: 10px;
+  height: 2px;
+  background: var(--accent);
+}
+
+/* ── Mast: persistent chrome ─────────────────────────────────────────────── */
+
 .mast {
   display: grid;
   grid-template-columns: auto 1fr auto auto auto auto;
-  gap: 12px;
+  gap: 14px;
   align-items: center;
-  padding: 8px 12px;
-  border-bottom: 2px solid var(--yellow);
-  background: #141510;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--line-strong);
+  background: var(--surface-1);
 }
 
 .mast-mark {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-weight: 700;
-  font-size: 13px;
-  color: var(--yellow);
-}
-
-.mast-plant {
-  font-family: Consolas, "Cascadia Mono", monospace;
-  font-size: 14px;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  color: var(--accent);
   white-space: nowrap;
 }
 
-.mast-clock {
-  font-family: Consolas, "Cascadia Mono", monospace;
-  font-size: 18px;
-  color: var(--crt);
+.mast-mark::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  background: var(--accent);
 }
 
-.mast-link {
-  font-size: 11px;
+.mast-facility {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.fac-name {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fac-code {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--text-mute);
+}
+
+.mast-clock {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  color: var(--run);
+}
+
+.mast-link,
+.mast-hand {
+  font-size: 10px;
   font-weight: 700;
-  padding: 4px 8px;
+  letter-spacing: 0.12em;
+  padding: 5px 9px;
   border: 1px solid var(--line);
+  color: var(--text-mute);
+  white-space: nowrap;
 }
 
 .mast-link[data-state="ok"] {
-  color: #141510;
-  background: var(--crt);
-  border-color: var(--crt);
-}
-
-.mast-hand {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 4px 8px;
-  border: 1px solid var(--line);
-}
-
-.mast-hand[data-state="ok"] {
-  color: var(--mute);
+  color: var(--bg);
+  background: var(--run);
+  border-color: var(--run);
+  box-shadow: var(--run-glow);
 }
 
 .mast-hand[data-state="wait"] {
-  color: #141510;
-  background: var(--oxide);
-  border-color: var(--oxide);
+  color: var(--bg);
+  background: var(--hold);
+  border-color: var(--hold);
+  box-shadow: var(--hold-glow);
+  animation: none;
 }
 
 .mast-id {
@@ -98,42 +181,45 @@ body {
   flex-direction: column;
   align-items: flex-end;
   gap: 1px;
-  padding: 3px 8px;
+  padding: 3px 10px;
   border: 1px solid var(--line);
-  background: #0e0f0c;
-  color: var(--ink);
+  background: var(--well);
+  color: var(--text);
   cursor: pointer;
   font-family: inherit;
   letter-spacing: 0.04em;
 }
 
 .mast-id:hover {
-  border-color: var(--yellow);
+  border-color: var(--accent);
 }
 
 .mast-id-role {
   font-size: 9px;
   font-weight: 700;
-  color: var(--yellow);
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  text-transform: uppercase;
 }
 
 .mast-id-name {
-  font-family: Consolas, "Cascadia Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--ink);
+  color: var(--text);
 }
+
+/* ── Deck: asset bay + command panel ─────────────────────────────────────── */
 
 .deck {
   display: grid;
-  grid-template-columns: 1fr 280px;
+  grid-template-columns: 1fr 300px;
   min-height: 0;
 }
 
 .bay {
   display: grid;
   /* auto-fit: existing tiles absorb the full row — no empty grid tracks, so
-     three assets span the whole bay instead of leaving a dead black strip
-     before the command panel. */
+     three assets span the whole bay instead of leaving a dead strip. */
   grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
   gap: 1px;
   background: var(--line);
@@ -142,304 +228,386 @@ body {
 }
 
 .asset {
-  background: var(--panel);
-  padding: 12px;
+  background: var(--surface-2);
+  padding: 12px 14px;
   cursor: pointer;
   min-height: 140px;
   /* Tile fills the bay height; OEE row pins to the bottom so a stretched
      tile reads as an instrument card, not a shell with a dead interior. */
   display: flex;
   flex-direction: column;
+  /* Status rail: the left edge carries the asset's state color. */
+  box-shadow: inset 3px 0 0 var(--text-mute);
+}
+
+.asset[data-state="run"] {
+  box-shadow: inset 3px 0 0 var(--run);
+}
+
+.asset[data-state="paused"] {
+  box-shadow: inset 3px 0 0 var(--hold);
+}
+
+.asset[data-state="down"] {
+  box-shadow: inset 3px 0 0 var(--down);
 }
 
 .asset[aria-selected="true"] {
-  outline: 2px solid var(--yellow);
+  outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
 
-.asset .code {
-  font-family: Consolas, "Cascadia Mono", monospace;
-  font-size: 16px;
-  color: var(--yellow);
+.asset:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
+.asset-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.asset .code {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+}
+
+.asset-state {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--text-mute);
+}
+
+.asset[data-state="run"] .asset-state { color: var(--run); }
+.asset[data-state="paused"] .asset-state { color: var(--hold); }
+.asset[data-state="down"] .asset-state { color: var(--down); }
+
 .asset .name {
-  color: var(--mute);
+  color: var(--text-mute);
   font-size: 12px;
-  margin: 4px 0 12px;
+  margin: 3px 0 14px;
 }
 
 .lamps {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   font-size: 10px;
   font-weight: 700;
+  letter-spacing: 0.1em;
 }
 
 .lamp {
   flex: 1;
   text-align: center;
-  padding: 8px 4px;
+  padding: 7px 4px;
   border: 1px solid var(--line);
-  color: var(--mute);
+  color: var(--text-mute);
+  background: transparent;
 }
 
 .lamp.on-run {
-  background: var(--crt);
-  color: #141510;
-  border-color: var(--crt);
+  background: var(--run-dim);
+  color: var(--run);
+  border-color: var(--run);
+  box-shadow: var(--run-glow);
 }
 
 .lamp.on-down {
-  background: var(--oxide);
-  color: #f3e7e2;
-  border-color: var(--oxide);
+  background: var(--down);
+  color: var(--bg);
+  border-color: var(--down);
+  box-shadow: var(--down-glow);
 }
 
 .ticket {
   margin-top: 10px;
-  font-family: Consolas, "Cascadia Mono", monospace;
-  font-size: 11px;
-  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text);
 }
 
 .oee {
   margin-top: auto;
-  padding-top: 8px;
-  font-family: Consolas, "Cascadia Mono", monospace;
+  padding-top: 10px;
+  font-family: var(--font-mono);
   font-size: 10px;
-  color: var(--mute);
+  color: var(--text-mute);
   letter-spacing: 0.06em;
 }
 
-.asset:focus-visible {
-  outline: 2px solid var(--yellow);
-  outline-offset: -2px;
-}
+/* Command panel */
 
 .stencil {
   border-left: 1px solid var(--line);
-  padding: 12px;
-  background: #181910;
+  padding: 14px;
+  background: var(--surface-1);
   overflow: auto;
 }
 
-.stencil h1,
-.tape h2 {
-  margin: 0 0 8px;
-  font-size: 11px;
-  color: var(--yellow);
-  font-weight: 700;
-}
-
 .sel {
-  font-family: Consolas, "Cascadia Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
-  margin: 0 0 12px;
+  margin: 0 0 14px;
+  color: var(--accent);
 }
 
 .stencil label {
   display: block;
-  font-size: 10px;
-  color: var(--mute);
-  margin-bottom: 8px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-mute);
+  margin-bottom: 10px;
 }
 
 .stencil select,
 .stencil input[type="number"] {
   display: block;
   width: 100%;
-  margin-top: 3px;
-  background: #0e0f0c;
-  color: var(--ink);
+  margin-top: 4px;
+  background: var(--well);
+  color: var(--text);
   border: 1px solid var(--line);
-  font-family: Consolas, "Cascadia Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
-  padding: 5px;
+  padding: 6px;
+}
+
+.stencil select:focus,
+.stencil input[type="number"]:focus {
+  outline: 1px solid var(--accent);
+  outline-offset: 0;
+}
+
+.shiftrow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 
 .pads {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
-  margin-top: 10px;
-}
-
-.shiftrow {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
+  margin-top: 12px;
 }
 
 .pads button {
-  background: #2e2f27;
-  color: var(--ink);
+  background: var(--surface-3);
+  color: var(--text);
   border: 1px solid var(--line);
   font-family: inherit;
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  padding: 10px 4px;
+  letter-spacing: 0.1em;
+  padding: 11px 4px;
   cursor: pointer;
 }
 
 .pads button:hover {
-  border-color: var(--yellow);
-  color: var(--yellow);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.pads button:active {
+  transform: translateY(1px);
 }
 
 .pads button.sup {
   grid-column: 1 / -1;
-  border-color: var(--warn);
+  border-color: rgba(255, 178, 36, 0.45);
+}
+
+.pads button.sup:hover {
+  border-color: var(--hold);
+  color: var(--hold);
 }
 
 .fault {
   margin: 12px 0 0;
   white-space: pre-wrap;
-  color: var(--oxide);
-  font-family: Consolas, "Cascadia Mono", monospace;
+  color: var(--down);
+  font-family: var(--font-mono);
   font-size: 11px;
 }
 
-.tape {
-  border-top: 2px solid var(--yellow);
-  padding: 8px 12px 12px;
-  max-height: 28vh;
-  overflow: auto;
-  background: #12130f;
-}
+/* ── Jobs: work-order cards ──────────────────────────────────────────────── */
 
 .jobs {
-  border-top: 2px solid var(--yellow);
-  padding: 8px 12px 12px;
-  background: #12130f;
-}
-
-.jobs h2 {
-  margin: 0 0 8px;
-  font-size: 11px;
-  color: var(--yellow);
-  font-weight: 700;
+  border-top: 1px solid var(--line-strong);
+  padding: 10px 14px 12px;
+  background: var(--surface-1);
 }
 
 #jobCards {
   display: grid;
   /* auto-fit: same rationale as .bay — cards span the full row, no dead tracks */
-  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
   gap: 1px;
   background: var(--line);
 }
 
 .jobcard {
-  background: var(--panel);
-  padding: 10px 12px;
+  background: var(--surface-2);
+  padding: 12px 14px;
+  box-shadow: inset 3px 0 0 var(--text-mute);
+}
+
+.jobcard:has(.jostatus.running) {
+  box-shadow: inset 3px 0 0 var(--run);
+}
+
+.jobcard:has(.jostatus.paused) {
+  box-shadow: inset 3px 0 0 var(--hold);
 }
 
 .jobhead {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  margin-bottom: 4px;
+  gap: 10px;
+  margin-bottom: 3px;
 }
 
 .jocode {
-  font-family: Consolas, "Cascadia Mono", monospace;
-  font-size: 14px;
-  color: var(--yellow);
+  font-family: var(--font-mono);
+  font-size: 15px;
   font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.02em;
 }
 
 .jostatus {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  padding: 2px 6px;
+  letter-spacing: 0.16em;
+  padding: 3px 8px;
   border: 1px solid var(--line);
+  color: var(--text-mute);
 }
 
 .jostatus.running {
-  color: #141510;
-  background: var(--crt);
-  border-color: var(--crt);
+  color: var(--bg);
+  background: var(--run);
+  border-color: var(--run);
+  box-shadow: var(--run-glow);
 }
 
 .jostatus.paused {
-  color: #141510;
-  background: var(--warn);
-  border-color: var(--warn);
-}
-
-.jostatus.idle {
-  color: var(--mute);
+  color: var(--bg);
+  background: var(--hold);
+  border-color: var(--hold);
+  box-shadow: var(--hold-glow);
 }
 
 .joop {
   font-size: 11px;
-  color: var(--ink);
-  margin-bottom: 8px;
+  color: var(--text-mute);
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  margin-bottom: 10px;
 }
 
 .joprogress {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
 }
 
 .jobar {
   flex: 1;
-  height: 6px;
-  background: #0e0f0c;
+  height: 10px;
+  background: var(--well);
   border: 1px solid var(--line);
   overflow: hidden;
 }
 
 .jofill {
   height: 100%;
+  background: var(--text-mute);
   transition: width 0.3s ease;
 }
 
 .jofill.running {
-  background: var(--crt);
+  background: var(--run);
+  box-shadow: var(--run-glow);
 }
 
 .jofill.paused {
-  background: var(--warn);
-}
-
-.jofill.idle {
-  background: var(--mute);
+  background: var(--hold);
+  box-shadow: var(--hold-glow);
 }
 
 .joqty {
-  font-family: Consolas, "Cascadia Mono", monospace;
-  font-size: 11px;
-  color: var(--mute);
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.joqty-target {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-mute);
+}
+
+/* ── Tape: append-only event log ─────────────────────────────────────────── */
+
+.tape {
+  border-top: 1px solid var(--line-strong);
+  padding: 10px 14px 12px;
+  max-height: 26vh;
+  overflow: auto;
+  background: var(--well);
 }
 
 .tape ol {
   list-style: none;
   margin: 0;
   padding: 0;
-  font-family: Consolas, "Cascadia Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
 }
 
 .tape li {
   display: grid;
-  grid-template-columns: 70px 180px 1fr;
-  gap: 10px;
-  border-bottom: 1px solid var(--line);
-  padding: 3px 0;
+  grid-template-columns: 76px 190px 1fr;
+  gap: 12px;
+  border-bottom: 1px solid rgba(38, 44, 51, 0.6);
+  padding: 4px 0;
+}
+
+.tape li:last-child {
+  border-bottom: 0;
 }
 
 .tape .when {
-  color: var(--crt);
+  color: var(--text-mute);
 }
 
 .tape .kind {
-  color: var(--yellow);
+  color: var(--accent);
+  letter-spacing: 0.02em;
 }
+
+.tape li:last-child .when {
+  color: var(--run);
+}
+
+.tape li span:last-child {
+  color: var(--text-dim);
+}
+
+/* ── Identity picker ─────────────────────────────────────────────────────── */
 
 .picker {
   position: fixed;
@@ -448,7 +616,7 @@ body {
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgba(10, 11, 8, 0.92);
+  background: rgba(8, 10, 12, 0.9);
 }
 
 .picker[hidden] {
@@ -457,31 +625,32 @@ body {
 
 .picker-panel {
   width: 100%;
-  max-width: 640px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-top: 2px solid var(--yellow);
-  padding: 20px 22px 22px;
+  max-width: 660px;
+  background: var(--surface-1);
+  border: 1px solid var(--line-strong);
+  border-top: 2px solid var(--accent);
+  padding: 22px 24px 24px;
 }
 
 .picker-mark {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
-  color: var(--yellow);
-  letter-spacing: 0.12em;
+  color: var(--accent);
+  letter-spacing: 0.2em;
 }
 
 .picker-panel h1 {
   margin: 6px 0 4px;
-  font-size: 18px;
-  color: var(--ink);
-  letter-spacing: 0.08em;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--text);
 }
 
 .picker-sub {
-  margin: 0 0 16px;
+  margin: 0 0 18px;
   font-size: 11px;
-  color: var(--mute);
+  color: var(--text-mute);
 }
 
 .picker-grid {
@@ -494,100 +663,110 @@ body {
   display: grid;
   gap: 2px;
   text-align: left;
-  padding: 12px;
-  background: #181910;
+  padding: 13px 14px;
+  background: var(--surface-2);
   border: 1px solid var(--line);
-  color: var(--ink);
+  color: var(--text);
   cursor: pointer;
   font-family: inherit;
   letter-spacing: 0.04em;
 }
 
 .picker-card:hover {
-  border-color: var(--yellow);
+  border-color: var(--accent);
 }
 
 .picker-card[data-current="true"] {
-  outline: 2px solid var(--crt);
+  outline: 2px solid var(--run);
   outline-offset: -2px;
 }
 
 .picker-role {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
-  color: var(--yellow);
+  letter-spacing: 0.16em;
+  color: var(--accent);
+  text-transform: uppercase;
 }
 
 .picker-name {
-  font-family: Consolas, "Cascadia Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 15px;
-  color: var(--ink);
+  color: var(--text);
 }
 
 .picker-note {
   font-size: 10px;
-  color: var(--mute);
+  color: var(--text-mute);
 }
 
 .picker-token {
   margin-top: 4px;
-  font-family: Consolas, "Cascadia Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
-  color: var(--crt);
+  color: var(--run);
 }
 
 .picker-custom {
   display: block;
-  margin-top: 16px;
-  font-size: 10px;
-  color: var(--mute);
+  margin-top: 18px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-mute);
 }
 
 .picker-custom-row {
   display: flex;
   gap: 6px;
-  margin-top: 4px;
+  margin-top: 5px;
 }
 
 .picker-custom input {
   flex: 1;
-  background: #0e0f0c;
-  color: var(--ink);
+  background: var(--well);
+  color: var(--text);
   border: 1px solid var(--line);
-  font-family: Consolas, "Cascadia Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   padding: 6px 8px;
 }
 
+.picker-custom input:focus {
+  outline: 1px solid var(--accent);
+  outline-offset: 0;
+}
+
 .picker-custom button {
-  background: #2e2f27;
-  color: var(--ink);
+  background: var(--surface-3);
+  color: var(--text);
   border: 1px solid var(--line);
   font-family: inherit;
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   padding: 6px 14px;
   cursor: pointer;
 }
 
 .picker-custom button:hover {
-  border-color: var(--yellow);
-  color: var(--yellow);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .picker-fault {
   margin: 14px 0 0;
   white-space: pre-wrap;
-  color: var(--oxide);
-  font-family: Consolas, "Cascadia Mono", monospace;
+  color: var(--down);
+  font-family: var(--font-mono);
   font-size: 11px;
 }
 
+/* ── Responsive: deck stacks below 960 (three 220px-min tiles need 662px bay),
+       chrome collapses below 800 ─────────────────────────────────────────── */
+
 @media (max-width: 960px) {
-  /* Three 220px-min tiles need a 662px bay; below ~942px viewport the
-     side-by-side deck wraps them 2+1. Stack the command panel under the bay
-     so tiles keep a clean single row. */
   .deck {
     grid-template-columns: 1fr;
   }
@@ -603,6 +782,7 @@ body {
   }
   .tape li {
     grid-template-columns: 1fr;
+    gap: 2px;
   }
   .picker-grid {
     grid-template-columns: 1fr;

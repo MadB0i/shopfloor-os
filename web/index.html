@@ -9,7 +9,10 @@
   <body>
     <header class="mast">
       <div class="mast-mark">SHOPFLOOR OS</div>
-      <div class="mast-plant" id="plant">—</div>
+      <div class="mast-facility">
+        <span class="fac-name" id="facName">—</span>
+        <span class="fac-code" id="facCode">—</span>
+      </div>
       <time class="mast-clock" id="clock" datetime="">00:00:00</time>
       <div class="mast-link" id="link" data-state="off">LINK</div>
       <div class="mast-hand" id="handoff" data-state="ok">SHIFT</div>
@@ -77,7 +80,7 @@
       <div class="picker-panel">
         <div class="picker-mark">SHOPFLOOR OS</div>
         <h1>SELECT IDENTITY</h1>
-        <p class="picker-sub">Pick a seeded role for this browser. Demo bearer tokens — no password.</p>
+        <p class="picker-sub">Seeded shift roles for this display. Bearer tokens — no password.</p>
         <div class="picker-grid" id="pickerGrid"></div>
         <label class="picker-custom">
           CUSTOM TOKEN

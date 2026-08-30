@@ -1,11 +1,11 @@
-# Build roadmap
+﻿# Build roadmap
 
 Order is dependency, not a calendar. A slice is done when API + fixture + test exist. The board is allowed only as a read/write face on those APIs — not as a substitute for them.
 
 ## Already on `main`
 
 - Event store `floor_events` (no in-place edits), `schema_version`, idempotency keys
-- Demo plant `PL-DEMO`, roles, bearer tokens
+- Seed plant `PL-RIVERBEND`, roles, bearer tokens
 - Commands: run start/end, good/scrap, downtime start/end, handoff submit/accept
 - Projections: `asset_locks`, `GET /v1/floor`, live asset, work-order timeline
 - `npm run rebuild` for locks
@@ -48,7 +48,7 @@ In-memory PGlite. Double start 409, unknown scrap 400, auditor 403, idempotent r
 Latest `handoff.submitted` blocks `run.start` until matching `handoff.accepted` or `handoff.overridden` (supervisor/planner). Snapshot includes open runs and open downtime. Floor `handoff.pending`.
 
 ### B7 — Planner catalog writes (done)
-`POST /v1/catalog/assets|reason-codes|work-orders|operations`. Planner only. New WO emits `work_order.opened`. Seed remains the demo plant.
+`POST /v1/catalog/assets|reason-codes|work-orders|operations`. Planner only. New WO emits `work_order.opened`. Seed remains the Seed plant.
 
 ### B8 — Export (done)
 `GET /v1/export/events.csv?from&to` — one row per event including voided qty and `record.corrected`. `voided` column is a flag, not a filter. Any plant bearer can download CSV; JSON `GET /v1/tape` stays auditor-only. Limit 50 000.
