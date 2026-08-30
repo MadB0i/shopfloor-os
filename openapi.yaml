@@ -296,6 +296,21 @@ paths:
           description: missing or inverted window
         "404":
           description: unknown asset
+  /v1/export/events.csv:
+    get:
+      parameters:
+        - name: from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          schema: { type: string, format: date-time }
+      responses:
+        "200":
+          description: raw event log as CSV; voided qty rows are still present
+          content:
+            text/csv:
+              schema: { type: string }
 components:
   parameters:
     IdempotencyKey:

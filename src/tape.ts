@@ -7,6 +7,7 @@ export async function loadTape(
   plantId: string,
   from?: Date,
   to?: Date,
+  limit = 2000,
 ) {
   const params: unknown[] = [plantId];
   let where = `plant_id = $1`;
@@ -34,8 +35,8 @@ export async function loadTape(
      FROM floor_events
      WHERE ${where}
      ORDER BY recorded_at ASC, id ASC
-     LIMIT 2000`,
-    params,
+     LIMIT $${params.length + 1}`,
+    [...params, limit],
   );
   for (const row of rows) {
     if (!isEventType(row.type)) {

@@ -29,6 +29,7 @@ import {
 import { pool } from "./db.js";
 import { annotateVoided } from "./effective.js";
 import { isEventType } from "./events/catalog.js";
+import { eventsToCsv } from "./csv.js";
 import { loadFloor } from "./floor.js";
 import { computeAssetOee, computePlantOee } from "./oee.js";
 import { loadTape } from "./tape.js";
@@ -230,6 +231,25 @@ export async function build() {
     }
     const events = await loadTape(pool, actor.plantId, from, to);
     return { plantId: actor.plantId, events };
+  });
+
+  app.get("/v1/export/events.csv", async (req, reply) => {
+    const actor = actorOf(req);
+    const q = req.query as { from?: string; to?: string };
+    const from = q.from ? new Date(q.from) : undefined;
+    const to = q.to ? new Date(q.to) : undefined;
+    if (from && Number.isNaN(from.getTime())) {
+      reply.code(400);
+      return { error: "invalid from" };
+    }
+    if (to && Number.isNaN(to.getTime())) {
+      reply.code(400);
+      return { error: "invalid to" };
+    }
+    const events = await loadTape(pool, actor.plantId, from, to, 50_000);
+    reply.header("content-type", "text/csv; charset=utf-8");
+    reply.header("content-disposition", 'attachment; filename="shopfloor-events.csv"');
+    return reply.send(eventsToCsv(events));
   });
 
   app.get("/v1/metrics/oee", async (req, reply) => {

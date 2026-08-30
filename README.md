@@ -56,7 +56,13 @@ Optional real Postgres (Docker or local) still works if you set `DATABASE_URL=po
 
 ### HTTP examples
 
-Auditor plant tape (not the operator board):
+Raw event CSV (one row per event, including voided qty). JSON tape is auditor-only:
+
+```bash
+curl -s "http://localhost:8787/v1/export/events.csv" -H "Authorization: Bearer dev-operator" -o shopfloor-events.csv
+```
+
+OEE-lite window:
 
 ```bash
 curl -s "http://localhost:8787/v1/metrics/oee?from=2026-08-30T00:00:00.000Z&to=2026-08-31T00:00:00.000Z" \

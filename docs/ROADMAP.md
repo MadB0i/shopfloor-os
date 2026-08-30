@@ -16,6 +16,7 @@ Order is dependency, not a calendar. A slice is done when API + fixture + test e
 - Corrections: qty events voided by `record.corrected`; auditor `GET /v1/tape`
 - OEE-lite: `GET /v1/metrics/oee`; board A/P/Q row
 - Handoff gate + planner catalog POSTs
+- CSV export of the raw event tape
 
 ## Spine (never drop)
 
@@ -49,8 +50,8 @@ Latest `handoff.submitted` blocks `run.start` until matching `handoff.accepted` 
 ### B7 — Planner catalog writes (done)
 `POST /v1/catalog/assets|reason-codes|work-orders|operations`. Planner only. New WO emits `work_order.opened`. Seed remains the demo plant.
 
-### B8 — Export (old C8, thin)
-`GET /v1/export/events.csv?from&to` — raw log, one row per event. No “pretty report” that hides corrections.
+### B8 — Export (done)
+`GET /v1/export/events.csv?from&to` — one row per event including voided qty and `record.corrected`. `voided` column is a flag, not a filter. Any plant bearer can download CSV; JSON `GET /v1/tape` stays auditor-only. Limit 50 000.
 
 ### B9 — Ingest pressure
 `/health` already pings the DB (B0). Remaining: ingest 429, backup = dump `floor_events`.
