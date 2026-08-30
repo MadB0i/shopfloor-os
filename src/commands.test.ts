@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
-import { canReadFullTape } from "./auth.js";
-import { handleCompleteRun, handleCorrect, handleGood, handleHandoffAccept, handleHandoffOverride, handleHandoffSubmit, handlePauseRun, handleResumeRun, handleScrap, handleStartRun, HttpError, type Actor } from "./commands.js";
+import { canReadFullTape, capabilitiesFor } from "./auth.js";
+import { authorize, handleCompleteRun, handleCorrect, handleGood, handleHandoffAccept, handleHandoffOverride, handleHandoffSubmit, handlePauseRun, handleResumeRun, handleScrap, handleStartRun, HttpError, type Actor } from "./commands.js";
 import { loadTape } from "./tape.js";
 import { effectiveQtySum } from "./effective.js";
 import { loadFloor } from "./floor.js";
@@ -277,6 +277,54 @@ test("full tape is auditor-only", () => {
   assert.equal(canReadFullTape("operator"), false);
   assert.equal(canReadFullTape("supervisor"), false);
   assert.equal(canReadFullTape("planner"), false);
+});
+
+const planner: Actor = { userId: "U-PL-1", plantId: "PL-DEMO", role: "planner" };
+
+test("authorize is the single guard: capabilities per role", () => {
+  // run.write — everyone but auditor
+  assert.doesNotThrow(() => authorize(operator, "run.write"));
+  assert.doesNotThrow(() => authorize(supervisor, "run.write"));
+  assert.doesNotThrow(() => authorize(planner, "run.write"));
+  assert.throws(() => authorize(auditor, "run.write"), (e: unknown) => statusOf(e) === 403);
+
+  // handoff.resolve — supervisor or planner (not operator, not auditor)
+  assert.doesNotThrow(() => authorize(supervisor, "handoff.resolve"));
+  assert.doesNotThrow(() => authorize(planner, "handoff.resolve"));
+  assert.throws(() => authorize(operator, "handoff.resolve"), (e: unknown) => statusOf(e) === 403);
+  assert.throws(() => authorize(auditor, "handoff.resolve"), (e: unknown) => statusOf(e) === 403);
+
+  // catalog.write — planner only
+  assert.doesNotThrow(() => authorize(planner, "catalog.write"));
+  assert.throws(() => authorize(operator, "catalog.write"), (e: unknown) => statusOf(e) === 403);
+  assert.throws(() => authorize(supervisor, "catalog.write"), (e: unknown) => statusOf(e) === 403);
+});
+
+test("capabilitiesFor mirrors the guard (shape sent to the UI)", () => {
+  assert.deepEqual(capabilitiesFor("operator"), {
+    "run.write": true,
+    "handoff.resolve": false,
+    "catalog.write": false,
+    "tape.read": false,
+  });
+  assert.deepEqual(capabilitiesFor("supervisor"), {
+    "run.write": true,
+    "handoff.resolve": true,
+    "catalog.write": false,
+    "tape.read": false,
+  });
+  assert.deepEqual(capabilitiesFor("planner"), {
+    "run.write": true,
+    "handoff.resolve": true,
+    "catalog.write": true,
+    "tape.read": false,
+  });
+  assert.deepEqual(capabilitiesFor("auditor"), {
+    "run.write": false,
+    "handoff.resolve": false,
+    "catalog.write": false,
+    "tape.read": true,
+  });
 });
 
 test("good qty is counted; tape marks voided scrap", async () => {

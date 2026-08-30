@@ -87,22 +87,34 @@ body {
   border-color: var(--oxide);
 }
 
-.key {
+.mast-id {
   display: flex;
-  gap: 6px;
-  align-items: center;
-  font-size: 10px;
-  color: var(--mute);
-}
-
-.key input {
-  width: 140px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  padding: 3px 8px;
+  border: 1px solid var(--line);
   background: #0e0f0c;
   color: var(--ink);
-  border: 1px solid var(--line);
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 0.04em;
+}
+
+.mast-id:hover {
+  border-color: var(--yellow);
+}
+
+.mast-id-role {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--yellow);
+}
+
+.mast-id-name {
   font-family: Consolas, "Cascadia Mono", monospace;
-  font-size: 11px;
-  padding: 4px 6px;
+  font-size: 12px;
+  color: var(--ink);
 }
 
 .deck {
@@ -403,6 +415,149 @@ body {
   color: var(--yellow);
 }
 
+.picker {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(10, 11, 8, 0.92);
+}
+
+.picker[hidden] {
+  display: none;
+}
+
+.picker-panel {
+  width: 100%;
+  max-width: 640px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--yellow);
+  padding: 20px 22px 22px;
+}
+
+.picker-mark {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--yellow);
+  letter-spacing: 0.12em;
+}
+
+.picker-panel h1 {
+  margin: 6px 0 4px;
+  font-size: 18px;
+  color: var(--ink);
+  letter-spacing: 0.08em;
+}
+
+.picker-sub {
+  margin: 0 0 16px;
+  font-size: 11px;
+  color: var(--mute);
+}
+
+.picker-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.picker-card {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  padding: 12px;
+  background: #181910;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 0.04em;
+}
+
+.picker-card:hover {
+  border-color: var(--yellow);
+}
+
+.picker-card[data-current="true"] {
+  outline: 2px solid var(--crt);
+  outline-offset: -2px;
+}
+
+.picker-role {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--yellow);
+}
+
+.picker-name {
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.picker-note {
+  font-size: 10px;
+  color: var(--mute);
+}
+
+.picker-token {
+  margin-top: 4px;
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 10px;
+  color: var(--crt);
+}
+
+.picker-custom {
+  display: block;
+  margin-top: 16px;
+  font-size: 10px;
+  color: var(--mute);
+}
+
+.picker-custom-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.picker-custom input {
+  flex: 1;
+  background: #0e0f0c;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 12px;
+  padding: 6px 8px;
+}
+
+.picker-custom button {
+  background: #2e2f27;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+
+.picker-custom button:hover {
+  border-color: var(--yellow);
+  color: var(--yellow);
+}
+
+.picker-fault {
+  margin: 14px 0 0;
+  white-space: pre-wrap;
+  color: var(--oxide);
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 11px;
+}
+
 @media (max-width: 800px) {
   .mast {
     grid-template-columns: 1fr 1fr;
@@ -411,6 +566,9 @@ body {
     grid-template-columns: 1fr;
   }
   .tape li {
+    grid-template-columns: 1fr;
+  }
+  .picker-grid {
     grid-template-columns: 1fr;
   }
 }

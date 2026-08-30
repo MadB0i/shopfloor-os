@@ -1,12 +1,7 @@
 import { z } from "zod";
-import { HttpError, type Actor } from "./commands.js";
+import { authorize, HttpError, type Actor } from "./commands.js";
 import { appendEvent } from "./events/store.js";
 import type { SqlClient } from "./sql.js";
-
-function requirePlanner(actor: Actor) {
-  if (actor.role === "auditor") throw new HttpError(403, "auditor cannot write");
-  if (actor.role !== "planner") throw new HttpError(403, "only planner can write catalog");
-}
 
 function duplicate(err: unknown): never {
   const msg = err instanceof Error ? err.message : String(err);
@@ -45,7 +40,7 @@ const opBody = z.object({
 });
 
 export async function handleCreateAsset(client: SqlClient, actor: Actor, body: unknown) {
-  requirePlanner(actor);
+  authorize(actor, "catalog.write");
   const parsed = assetBody.parse(body);
   const id = parsed.id ?? parsed.code;
   try {
@@ -60,7 +55,7 @@ export async function handleCreateAsset(client: SqlClient, actor: Actor, body: u
 }
 
 export async function handleCreateReasonCode(client: SqlClient, actor: Actor, body: unknown) {
-  requirePlanner(actor);
+  authorize(actor, "catalog.write");
   const parsed = reasonBody.parse(body);
   const id = parsed.id ?? `RC-${parsed.kind}-${parsed.code}`;
   try {
@@ -75,7 +70,7 @@ export async function handleCreateReasonCode(client: SqlClient, actor: Actor, bo
 }
 
 export async function handleCreateWorkOrder(client: SqlClient, actor: Actor, body: unknown) {
-  requirePlanner(actor);
+  authorize(actor, "catalog.write");
   const parsed = woBody.parse(body);
   const id = parsed.id ?? parsed.code;
   const due = parsed.dueAt ? new Date(parsed.dueAt) : null;
@@ -99,7 +94,7 @@ export async function handleCreateWorkOrder(client: SqlClient, actor: Actor, bod
 }
 
 export async function handleCreateOperation(client: SqlClient, actor: Actor, body: unknown) {
-  requirePlanner(actor);
+  authorize(actor, "catalog.write");
   const parsed = opBody.parse(body);
   const wo = await client.query(
     `SELECT 1 FROM work_orders WHERE id = $1 AND plant_id = $2`,

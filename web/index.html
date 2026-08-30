@@ -13,10 +13,10 @@
       <time class="mast-clock" id="clock" datetime="">00:00:00</time>
       <div class="mast-link" id="link" data-state="off">LINK</div>
       <div class="mast-hand" id="handoff" data-state="ok">SHIFT</div>
-      <label class="key">
-        TOKEN
-        <input id="token" type="password" autocomplete="off" spellcheck="false" />
-      </label>
+      <button class="mast-id" id="whoami" type="button" title="Switch identity">
+        <span class="mast-id-role" id="whoRole">—</span>
+        <span class="mast-id-name" id="whoName">SIGN IN</span>
+      </button>
     </header>
 
     <main class="deck">
@@ -64,6 +64,23 @@
       <h2>TAPE</h2>
       <ol id="tape"></ol>
     </section>
+
+    <div class="picker" id="picker" hidden>
+      <div class="picker-panel">
+        <div class="picker-mark">SHOPFLOOR OS</div>
+        <h1>SELECT IDENTITY</h1>
+        <p class="picker-sub">Pick a seeded role for this browser. Demo bearer tokens — no password.</p>
+        <div class="picker-grid" id="pickerGrid"></div>
+        <label class="picker-custom">
+          CUSTOM TOKEN
+          <span class="picker-custom-row">
+            <input id="customToken" type="text" spellcheck="false" autocomplete="off" placeholder="paste a bearer token" />
+            <button type="button" id="customApply">USE</button>
+          </span>
+        </label>
+        <pre class="picker-fault" id="pickerFault" hidden></pre>
+      </div>
+    </div>
 
     <script src="/board.js"></script>
   </body>

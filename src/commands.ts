@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { SqlClient } from "./db.js";
 import type { EventType } from "./events/catalog.js";
+import { can, type ActorRole, type Capability } from "./auth.js";
 import { pendingHandoff } from "./handoff.js";
 import { assetIsPaused } from "./projections.js";
 import { supersededEventIds } from "./effective.js";
@@ -9,7 +10,7 @@ import { appendEvent, lookupIdempotency, rememberIdempotency, requestHash } from
 export type Actor = {
   userId: string;
   plantId: string;
-  role: "operator" | "supervisor" | "planner" | "auditor";
+  role: ActorRole;
 };
 
 export class HttpError extends Error {
@@ -20,8 +21,28 @@ export class HttpError extends Error {
   }
 }
 
-function denyAuditor(actor: Actor) {
-  if (actor.role === "auditor") throw new HttpError(403, "auditor cannot write");
+/**
+ * The one guard. Every write path — commands and catalog — funnels its role
+ * check through here, and the rules it enforces come from the capability map
+ * in auth.ts (the same map GET /v1/me hands the UI), so server and board never
+ * drift. Reads that gate on a capability (e.g. the full tape) use `can` there
+ * directly, since they return a JSON 403 rather than throwing.
+ */
+export function authorize(actor: Actor, cap: Capability): void {
+  if (can(actor.role, cap)) return;
+  // auditor is read-only everywhere; keep its single, recognizable message.
+  if (actor.role === "auditor" && cap !== "tape.read") {
+    throw new HttpError(403, "auditor cannot write");
+  }
+  const message =
+    cap === "handoff.resolve"
+      ? "only supervisor or planner can accept or override handoff"
+      : cap === "catalog.write"
+        ? "only planner can write catalog"
+        : cap === "tape.read"
+          ? "full tape is auditor-only"
+          : "forbidden";
+  throw new HttpError(403, message);
 }
 
 async function replayOrRun(
@@ -161,7 +182,7 @@ export async function handleStartRun(
   body: unknown,
   idempotencyKey: string | undefined,
 ) {
-  denyAuditor(actor);
+  authorize(actor, "run.write");
   const parsed = startRun.parse(body);
   const hash = requestHash({ cmd: "run.start", ...parsed });
   return replayOrRun(client, actor.plantId, idempotencyKey, hash, async () => {
@@ -189,7 +210,7 @@ export async function handleCompleteRun(
   body: unknown,
   idempotencyKey: string | undefined,
 ) {
-  denyAuditor(actor);
+  authorize(actor, "run.write");
   const parsed = assetOnly.parse(body);
   const hash = requestHash({ cmd: "run.complete", ...parsed });
   return replayOrRun(client, actor.plantId, idempotencyKey, hash, async () => {
@@ -224,7 +245,7 @@ export async function handlePauseRun(
   body: unknown,
   idempotencyKey: string | undefined,
 ) {
-  denyAuditor(actor);
+  authorize(actor, "run.write");
   const parsed = assetOnly.parse(body);
   const hash = requestHash({ cmd: "run.pause", ...parsed });
   return replayOrRun(client, actor.plantId, idempotencyKey, hash, async () => {
@@ -251,7 +272,7 @@ export async function handleResumeRun(
   body: unknown,
   idempotencyKey: string | undefined,
 ) {
-  denyAuditor(actor);
+  authorize(actor, "run.write");
   const parsed = assetOnly.parse(body);
   const hash = requestHash({ cmd: "run.resume", ...parsed });
   return replayOrRun(client, actor.plantId, idempotencyKey, hash, async () => {
@@ -278,7 +299,7 @@ export async function handleGood(
   body: unknown,
   idempotencyKey: string | undefined,
 ) {
-  denyAuditor(actor);
+  authorize(actor, "run.write");
   const parsed = qtyBody.parse(body);
   const hash = requestHash({ cmd: "qty.good", ...parsed });
   return replayOrRun(client, actor.plantId, idempotencyKey, hash, async () =>
@@ -297,7 +318,7 @@ export async function handleScrap(
   body: unknown,
   idempotencyKey: string | undefined,
 ) {
-  denyAuditor(actor);
+  authorize(actor, "run.write");
   const parsed = scrap.parse(body);
   await requireReason(client, actor.plantId, "scrap", parsed.reasonCode);
   const hash = requestHash({ cmd: "qty.scrap", ...parsed });
@@ -317,7 +338,7 @@ export async function handleDowntimeStart(
   body: unknown,
   idempotencyKey: string | undefined,
 ) {
-  denyAuditor(actor);
+  authorize(actor, "run.write");
   const parsed = downtimeStart.parse(body);
   await requireReason(client, actor.plantId, "downtime", parsed.reasonCode);
   const hash = requestHash({ cmd: "downtime.start", ...parsed });
@@ -335,7 +356,7 @@ export async function handleDowntimeEnd(
   body: unknown,
   idempotencyKey: string | undefined,
 ) {
-  denyAuditor(actor);
+  authorize(actor, "run.write");
   const parsed = assetOnly.parse(body);
   const hash = requestHash({ cmd: "downtime.end", ...parsed });
   return replayOrRun(client, actor.plantId, idempotencyKey, hash, async () => {
@@ -358,20 +379,13 @@ export async function handleDowntimeEnd(
   });
 }
 
-function requireShiftLead(actor: Actor) {
-  denyAuditor(actor);
-  if (actor.role === "operator") {
-    throw new HttpError(403, "only supervisor or planner can accept or override handoff");
-  }
-}
-
 export async function handleHandoffSubmit(
   client: SqlClient,
   actor: Actor,
   body: unknown,
   idempotencyKey: string | undefined,
 ) {
-  denyAuditor(actor);
+  authorize(actor, "run.write");
   const parsed = handoffSubmit.parse(body);
   const hash = requestHash({ cmd: "handoff.submit", ...parsed });
   return replayOrRun(client, actor.plantId, idempotencyKey, hash, async () => {
@@ -413,7 +427,7 @@ export async function handleHandoffAccept(
   body: unknown,
   idempotencyKey: string | undefined,
 ) {
-  requireShiftLead(actor);
+  authorize(actor, "handoff.resolve");
   const parsed = handoffAccept.parse(body);
   const hash = requestHash({ cmd: "handoff.accept", actor: actor.userId, ...parsed });
   return replayOrRun(client, actor.plantId, idempotencyKey, hash, async () => {
@@ -433,7 +447,7 @@ export async function handleHandoffOverride(
   body: unknown,
   idempotencyKey: string | undefined,
 ) {
-  requireShiftLead(actor);
+  authorize(actor, "handoff.resolve");
   const parsed = handoffOverride.parse(body);
   const hash = requestHash({ cmd: "handoff.override", actor: actor.userId, ...parsed });
   return replayOrRun(client, actor.plantId, idempotencyKey, hash, async () => {
@@ -460,7 +474,7 @@ export async function handleCorrect(
   body: unknown,
   idempotencyKey: string | undefined,
 ) {
-  denyAuditor(actor);
+  authorize(actor, "run.write");
   const parsed = correctBody.parse(body);
   const hash = requestHash({ cmd: "record.correct", ...parsed });
   return replayOrRun(client, actor.plantId, idempotencyKey, hash, async () => {
