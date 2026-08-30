@@ -4,7 +4,7 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";
 import { ZodError } from "zod";
-import { actorFromHeader, canReadFullTape, tokensFromEnv } from "./auth.js";
+import { actorFromHeader, canReadFullTape, capabilitiesFor, tokensFromEnv } from "./auth.js";
 import {
   handleCompleteRun,
   handleCorrect,
@@ -24,6 +24,7 @@ import {
   handleCreateAsset,
   handleCreateOperation,
   handleCreateReasonCode,
+  handleCreateShift,
   handleCreateWorkOrder,
 } from "./catalog-write.js";
 import { pool } from "./db.js";
@@ -103,6 +104,19 @@ export async function build() {
 
   const actorOf = (req: unknown) => (req as { actor: ReqActor }).actor;
 
+  // Identity + capabilities for the authenticated token. The board calls this
+  // on load to learn which actions to show — the `can` map is the same one the
+  // backend guards enforce (see auth.ts), so the UI mirrors the server exactly.
+  app.get("/v1/me", async (req) => {
+    const actor = actorOf(req);
+    return {
+      userId: actor.userId,
+      plantId: actor.plantId,
+      role: actor.role,
+      can: capabilitiesFor(actor.role),
+    };
+  });
+
   app.post("/v1/commands/run.start", async (req, reply) =>
     runCommand(req as never, reply, handleStartRun),
   );
@@ -166,6 +180,9 @@ export async function build() {
   );
   app.post("/v1/catalog/operations", async (req, reply) =>
     catalogWrite(req as never, reply, handleCreateOperation),
+  );
+  app.post("/v1/catalog/shifts", async (req, reply) =>
+    catalogWrite(req as never, reply, handleCreateShift),
   );
 
   app.get("/v1/floor", async (req, reply) => {

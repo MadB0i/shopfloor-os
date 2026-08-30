@@ -44,6 +44,11 @@ export async function loadFloor(pool: SqlPool, plantId: string) {
     [plantId],
   );
 
+  const shifts = await pool.query(
+    `SELECT id, code, name, starts_at, ends_at FROM shifts WHERE plant_id = $1 ORDER BY code`,
+    [plantId],
+  );
+
   const ops = await pool.query(
     `SELECT o.id, o.work_order_id, o.seq, o.name, o.default_asset_id, w.code AS work_order_code
      FROM operations o
@@ -93,6 +98,7 @@ export async function loadFloor(pool: SqlPool, plantId: string) {
     })),
     operations: ops.rows,
     reasonCodes: reasons.rows,
+    shifts: shifts.rows,
     tape: await annotateVoided(pool, plantId, tape.rows),
     handoff: handoff ? { pending: true, ...handoff } : { pending: false },
   };

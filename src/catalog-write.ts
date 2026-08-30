@@ -1,12 +1,7 @@
 import { z } from "zod";
-import { HttpError, type Actor } from "./commands.js";
+import { authorize, HttpError, type Actor } from "./commands.js";
 import { appendEvent } from "./events/store.js";
 import type { SqlClient } from "./sql.js";
-
-function requirePlanner(actor: Actor) {
-  if (actor.role === "auditor") throw new HttpError(403, "auditor cannot write");
-  if (actor.role !== "planner") throw new HttpError(403, "only planner can write catalog");
-}
 
 function duplicate(err: unknown): never {
   const msg = err instanceof Error ? err.message : String(err);
@@ -44,8 +39,16 @@ const opBody = z.object({
   defaultAssetId: z.string().min(1).optional(),
 });
 
+const shiftBody = z.object({
+  id: z.string().min(1).optional(),
+  code: z.string().min(1).max(20),
+  name: z.string().min(1).max(80),
+  startsAt: z.string().optional(),
+  endsAt: z.string().optional(),
+});
+
 export async function handleCreateAsset(client: SqlClient, actor: Actor, body: unknown) {
-  requirePlanner(actor);
+  authorize(actor, "catalog.write");
   const parsed = assetBody.parse(body);
   const id = parsed.id ?? parsed.code;
   try {
@@ -60,7 +63,7 @@ export async function handleCreateAsset(client: SqlClient, actor: Actor, body: u
 }
 
 export async function handleCreateReasonCode(client: SqlClient, actor: Actor, body: unknown) {
-  requirePlanner(actor);
+  authorize(actor, "catalog.write");
   const parsed = reasonBody.parse(body);
   const id = parsed.id ?? `RC-${parsed.kind}-${parsed.code}`;
   try {
@@ -75,7 +78,7 @@ export async function handleCreateReasonCode(client: SqlClient, actor: Actor, bo
 }
 
 export async function handleCreateWorkOrder(client: SqlClient, actor: Actor, body: unknown) {
-  requirePlanner(actor);
+  authorize(actor, "catalog.write");
   const parsed = woBody.parse(body);
   const id = parsed.id ?? parsed.code;
   const due = parsed.dueAt ? new Date(parsed.dueAt) : null;
@@ -99,7 +102,7 @@ export async function handleCreateWorkOrder(client: SqlClient, actor: Actor, bod
 }
 
 export async function handleCreateOperation(client: SqlClient, actor: Actor, body: unknown) {
-  requirePlanner(actor);
+  authorize(actor, "catalog.write");
   const parsed = opBody.parse(body);
   const wo = await client.query(
     `SELECT 1 FROM work_orders WHERE id = $1 AND plant_id = $2`,
@@ -118,6 +121,21 @@ export async function handleCreateOperation(client: SqlClient, actor: Actor, bod
     await client.query(
       `INSERT INTO operations (id, work_order_id, seq, name, default_asset_id) VALUES ($1, $2, $3, $4, $5)`,
       [id, parsed.workOrderId, parsed.seq, parsed.name, parsed.defaultAssetId ?? null],
+    );
+  } catch (err) {
+    duplicate(err);
+  }
+  return { id };
+}
+
+export async function handleCreateShift(client: SqlClient, actor: Actor, body: unknown) {
+  authorize(actor, "catalog.write");
+  const parsed = shiftBody.parse(body);
+  const id = parsed.id ?? `SHIFT-${parsed.code}`;
+  try {
+    await client.query(
+      `INSERT INTO shifts (id, plant_id, code, name, starts_at, ends_at) VALUES ($1, $2, $3, $4, $5, $6)`,
+      [id, actor.plantId, parsed.code, parsed.name, parsed.startsAt ?? null, parsed.endsAt ?? null],
     );
   } catch (err) {
     duplicate(err);

@@ -214,6 +214,24 @@ paths:
       responses:
         "200":
           description: routing step created (planner)
+  /v1/catalog/shifts:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, name]
+              properties:
+                id: { type: string }
+                code: { type: string }
+                name: { type: string }
+                startsAt: { type: string }
+                endsAt: { type: string }
+      responses:
+        "200":
+          description: shift created (planner)
   /v1/commands/record.correct:
     post:
       parameters:

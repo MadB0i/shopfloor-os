@@ -1,4 +1,3 @@
-const tokenEl = document.querySelector("#token");
 const plantEl = document.querySelector("#plant");
 const clockEl = document.querySelector("#clock");
 const linkEl = document.querySelector("#link");
@@ -10,14 +9,37 @@ const opEl = document.querySelector("#op");
 const qtyEl = document.querySelector("#qty");
 const scrapEl = document.querySelector("#scrapReason");
 const downEl = document.querySelector("#downReason");
+const shiftFromEl = document.querySelector("#shiftFrom");
+const shiftToEl = document.querySelector("#shiftTo");
 const faultEl = document.querySelector("#fault");
 
-const stored = localStorage.getItem("sfos.token") || "dev-operator";
-tokenEl.value = stored;
+const whoamiEl = document.querySelector("#whoami");
+const whoRoleEl = document.querySelector("#whoRole");
+const whoNameEl = document.querySelector("#whoName");
+const pickerEl = document.querySelector("#picker");
+const pickerGridEl = document.querySelector("#pickerGrid");
+const pickerFaultEl = document.querySelector("#pickerFault");
+const customTokenEl = document.querySelector("#customToken");
+const customApplyEl = document.querySelector("#customApply");
+
+// Seeded demo identities. These are the default dev tokens (see .env.example /
+// docker-compose.yml) mapped to the users seeded in seed-plant.ts. The static
+// bearer-token model is intentional for the demo — this is a picker, not auth.
+const IDENTITIES = [
+  { token: "dev-operator", role: "operator", name: "Rina", note: "records runs, qty, downtime" },
+  { token: "dev-supervisor", role: "supervisor", name: "Kamal", note: "accepts / overrides handoff" },
+  { token: "dev-planner", role: "planner", name: "Meera", note: "runs floor + writes catalog" },
+  { token: "dev-auditor", role: "auditor", name: "Audit desk", note: "read-only, full tape" },
+];
 
 let selectedAsset = null;
 let floor = null;
 let oeeById = {};
+let me = null; // { userId, role, plantId, can } from GET /v1/me
+
+function getToken() {
+  return localStorage.getItem("sfos.token") || "";
+}
 
 function oeeCell(n) {
   return n == null || Number.isNaN(n) ? "—" : Number(n).toFixed(3);
@@ -33,20 +55,107 @@ function tick() {
 setInterval(tick, 1000);
 tick();
 
-tokenEl.addEventListener("change", () => {
-  localStorage.setItem("sfos.token", tokenEl.value.trim());
-  load();
-});
-
 function authHeaders() {
   return {
-    Authorization: `Bearer ${tokenEl.value.trim()}`,
+    Authorization: `Bearer ${getToken()}`,
     "Content-Type": "application/json",
   };
 }
 
+// ── Identity picker ─────────────────────────────────────────────────────────
+
+function renderPicker() {
+  pickerGridEl.replaceChildren();
+  const current = getToken();
+  for (const id of IDENTITIES) {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "picker-card";
+    if (id.token === current) card.dataset.current = "true";
+    card.innerHTML = `
+      <span class="picker-role">${id.role.toUpperCase()}</span>
+      <span class="picker-name">${id.name}</span>
+      <span class="picker-note">${id.note}</span>
+      <span class="picker-token">${id.token}</span>
+    `;
+    card.addEventListener("click", () => setIdentity(id.token));
+    pickerGridEl.append(card);
+  }
+}
+
+function showPicker(message) {
+  renderPicker();
+  pickerFaultEl.hidden = !message;
+  if (message) pickerFaultEl.textContent = message;
+  customTokenEl.value = "";
+  pickerEl.hidden = false;
+}
+
+function hidePicker() {
+  pickerEl.hidden = true;
+  pickerFaultEl.hidden = true;
+}
+
+function setIdentity(token) {
+  const trimmed = (token || "").trim();
+  if (!trimmed) return;
+  localStorage.setItem("sfos.token", trimmed);
+  me = null;
+  hidePicker();
+  load();
+}
+
+function renderIdentity() {
+  const token = getToken();
+  const known = IDENTITIES.find((i) => i.token === token);
+  const role = me?.role || known?.role || "";
+  const name = known?.name || me?.userId || "—";
+  whoRoleEl.textContent = role ? role.toUpperCase() : "—";
+  whoNameEl.textContent = name;
+  whoamiEl.dataset.role = role;
+}
+
+// Show/hide command buttons to mirror the backend capability map from /v1/me.
+// Each button's capability: handoff accept/override need "handoff.resolve";
+// everything else is a "run.write". Auditor has neither, so its pads vanish.
+function applyRole() {
+  const cap = me?.can || {};
+  for (const btn of document.querySelectorAll(".pads button[data-cmd]")) {
+    const cmd = btn.dataset.cmd;
+    const needed = cmd === "handoff.accept" || cmd === "handoff.override" ? "handoff.resolve" : "run.write";
+    btn.hidden = !cap[needed];
+  }
+}
+
+whoamiEl.addEventListener("click", () => showPicker());
+customApplyEl.addEventListener("click", () => setIdentity(customTokenEl.value));
+customTokenEl.addEventListener("keydown", (ev) => {
+  if (ev.key === "Enter") setIdentity(customTokenEl.value);
+});
+
+// ── Board ────────────────────────────────────────────────────────────────────
+
 async function load() {
+  if (!getToken()) {
+    linkEl.dataset.state = "off";
+    showPicker();
+    return;
+  }
   try {
+    const meRes = await fetch("/v1/me", { headers: authHeaders() });
+    if (meRes.status === 401 || meRes.status === 403) {
+      linkEl.dataset.state = "off";
+      me = null;
+      renderIdentity();
+      showPicker("Unknown token — pick a seeded identity or paste a valid one.");
+      return;
+    }
+    if (meRes.ok) {
+      me = await meRes.json();
+      renderIdentity();
+      applyRole();
+    }
+
     const res = await fetch("/v1/floor", { headers: authHeaders() });
     if (!res.ok) {
       linkEl.dataset.state = "off";
@@ -78,6 +187,7 @@ async function load() {
     renderJobs();
     renderOps();
     renderReasons();
+    renderShifts();
     renderTape();
     faultEl.hidden = true;
   } catch (err) {
@@ -194,6 +304,22 @@ function renderReasons() {
   }
 }
 
+function renderShifts() {
+  const list = floor.shifts || [];
+  shiftFromEl.replaceChildren();
+  shiftToEl.replaceChildren();
+  for (const s of list) {
+    const fromOpt = document.createElement("option");
+    fromOpt.value = s.code;
+    fromOpt.textContent = `${s.code} ${s.name}`;
+    shiftFromEl.append(fromOpt);
+    shiftToEl.append(fromOpt.cloneNode(true));
+  }
+  if (list.length > 1) {
+    shiftToEl.value = list[1].code;
+  }
+}
+
 function renderTape() {
   tapeEl.replaceChildren();
   for (const ev of floor.tape) {
@@ -227,17 +353,22 @@ const bodies = {
   }),
   "downtime.start": () => ({ assetId: selectedAsset, reasonCode: downEl.value }),
   "downtime.end": () => ({ assetId: selectedAsset }),
-  "handoff.submit": () => ({ fromShift: "A", toShift: "B", note: "board" }),
-  "handoff.accept": () => ({ fromShift: "A", toShift: "B" }),
-  "handoff.override": () => ({ fromShift: "A", toShift: "B", reason: "board" }),
+  "handoff.submit": () => ({ fromShift: shiftFromEl.value, toShift: shiftToEl.value, note: "board" }),
+  "handoff.accept": () => ({ fromShift: shiftFromEl.value, toShift: shiftToEl.value }),
+  "handoff.override": () => ({ fromShift: shiftFromEl.value, toShift: shiftToEl.value, reason: "board" }),
 };
 
 document.querySelector(".pads").addEventListener("click", async (ev) => {
   const btn = ev.target.closest("button[data-cmd]");
   if (!btn || !selectedAsset) return;
   const cmd = btn.dataset.cmd;
-  const token = localStorage.getItem("sfos.token") || tokenEl.value.trim();
-  if (tokenEl.value.trim() !== token) localStorage.setItem("sfos.token", tokenEl.value.trim());
+  // Mirror the backend guard client-side too — the button is hidden for roles
+  // that lack the capability, but never trust the DOM alone.
+  const needed = cmd === "handoff.accept" || cmd === "handoff.override" ? "handoff.resolve" : "run.write";
+  if (me && me.can && !me.can[needed]) {
+    showFault(new Error(`${me.role} cannot ${cmd}`));
+    return;
+  }
   try {
     const res = await fetch(`/v1/commands/${cmd}`, {
       method: "POST",
