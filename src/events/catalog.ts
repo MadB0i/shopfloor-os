@@ -14,6 +14,7 @@ export const EVENT_TYPES = [
   "material.returned",
   "handoff.submitted",
   "handoff.accepted",
+  "handoff.overridden",
   "crew.clocked_in",
   "crew.clocked_out",
   "record.corrected",

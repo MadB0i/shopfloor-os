@@ -12,6 +12,7 @@
       <div class="mast-plant" id="plant">—</div>
       <time class="mast-clock" id="clock" datetime="">00:00:00</time>
       <div class="mast-link" id="link" data-state="off">LINK</div>
+      <div class="mast-hand" id="handoff" data-state="ok">SHIFT</div>
       <label class="key">
         TOKEN
         <input id="token" type="password" autocomplete="off" spellcheck="false" />
@@ -47,6 +48,7 @@
             <button type="button" data-cmd="downtime.end">DOWN END</button>
             <button type="button" data-cmd="handoff.submit">HANDOFF OUT</button>
             <button type="button" data-cmd="handoff.accept" class="sup">HANDOFF ACK</button>
+            <button type="button" data-cmd="handoff.override" class="sup">HANDOFF SKIP</button>
           </div>
         </form>
         <pre class="fault" id="fault" hidden></pre>

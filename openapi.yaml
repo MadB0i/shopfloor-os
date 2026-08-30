@@ -165,6 +165,55 @@ paths:
       responses:
         "200":
           description: handoff accepted (supervisor/planner)
+  /v1/commands/handoff.override:
+    post:
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fromShift, toShift, reason]
+              properties:
+                fromShift: { type: string }
+                toShift: { type: string }
+                reason: { type: string }
+      responses:
+        "200":
+          description: pending handoff cleared without accept
+  /v1/catalog/assets:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, name]
+              properties:
+                id: { type: string }
+                code: { type: string }
+                name: { type: string }
+      responses:
+        "200":
+          description: asset created (planner)
+  /v1/catalog/reason-codes:
+    post:
+      responses:
+        "200":
+          description: reason code created (planner)
+  /v1/catalog/work-orders:
+    post:
+      responses:
+        "200":
+          description: work order created; emits work_order.opened
+  /v1/catalog/operations:
+    post:
+      responses:
+        "200":
+          description: routing step created (planner)
   /v1/commands/record.correct:
     post:
       parameters:

@@ -2,6 +2,7 @@ const tokenEl = document.querySelector("#token");
 const plantEl = document.querySelector("#plant");
 const clockEl = document.querySelector("#clock");
 const linkEl = document.querySelector("#link");
+const handoffEl = document.querySelector("#handoff");
 const assetsEl = document.querySelector("#assets");
 const tapeEl = document.querySelector("#tape");
 const selectedEl = document.querySelector("#selected");
@@ -54,6 +55,13 @@ async function load() {
     floor = await res.json();
     linkEl.dataset.state = "ok";
     plantEl.textContent = `${floor.plant.id}  ${floor.plant.name}`;
+    if (floor.handoff?.pending) {
+      handoffEl.dataset.state = "wait";
+      handoffEl.textContent = `HO ${floor.handoff.fromShift}>${floor.handoff.toShift}`;
+    } else {
+      handoffEl.dataset.state = "ok";
+      handoffEl.textContent = "SHIFT";
+    }
     oeeById = {};
     const until = new Date();
     const since = new Date(until);
@@ -170,6 +178,7 @@ const bodies = {
   "downtime.end": () => ({ assetId: selectedAsset }),
   "handoff.submit": () => ({ fromShift: "A", toShift: "B", note: "board" }),
   "handoff.accept": () => ({ fromShift: "A", toShift: "B" }),
+  "handoff.override": () => ({ fromShift: "A", toShift: "B", reason: "board" }),
 };
 
 document.querySelector(".pads").addEventListener("click", async (ev) => {

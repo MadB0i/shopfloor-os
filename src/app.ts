@@ -12,6 +12,7 @@ import {
   handleDowntimeStart,
   handleGood,
   handleHandoffAccept,
+  handleHandoffOverride,
   handleHandoffSubmit,
   handlePauseRun,
   handleResumeRun,
@@ -19,6 +20,12 @@ import {
   handleStartRun,
   HttpError,
 } from "./commands.js";
+import {
+  handleCreateAsset,
+  handleCreateOperation,
+  handleCreateReasonCode,
+  handleCreateWorkOrder,
+} from "./catalog-write.js";
 import { pool } from "./db.js";
 import { annotateVoided } from "./effective.js";
 import { isEventType } from "./events/catalog.js";
@@ -121,8 +128,43 @@ export async function build() {
   app.post("/v1/commands/handoff.accept", async (req, reply) =>
     runCommand(req as never, reply, handleHandoffAccept),
   );
+  app.post("/v1/commands/handoff.override", async (req, reply) =>
+    runCommand(req as never, reply, handleHandoffOverride),
+  );
   app.post("/v1/commands/record.correct", async (req, reply) =>
     runCommand(req as never, reply, handleCorrect),
+  );
+
+  const catalogWrite = async (
+    req: { body: unknown; actor?: ReqActor },
+    reply: { code: (n: number) => unknown },
+    fn: (client: import("./db.js").SqlClient, actor: ReqActor, body: unknown) => Promise<unknown>,
+  ) => {
+    const actor = (req as { actor: ReqActor }).actor;
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const result = await fn(client, actor, req.body);
+      await client.query("COMMIT");
+      return result;
+    } catch (err) {
+      await client.query("ROLLBACK");
+      (reply as { code: (n: number) => void }).code(statusOf(err));
+      return { error: err instanceof Error ? err.message : "failed" };
+    } finally {
+      client.release();
+    }
+  };
+
+  app.post("/v1/catalog/assets", async (req, reply) => catalogWrite(req as never, reply, handleCreateAsset));
+  app.post("/v1/catalog/reason-codes", async (req, reply) =>
+    catalogWrite(req as never, reply, handleCreateReasonCode),
+  );
+  app.post("/v1/catalog/work-orders", async (req, reply) =>
+    catalogWrite(req as never, reply, handleCreateWorkOrder),
+  );
+  app.post("/v1/catalog/operations", async (req, reply) =>
+    catalogWrite(req as never, reply, handleCreateOperation),
   );
 
   app.get("/v1/floor", async (req, reply) => {

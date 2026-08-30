@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import { canReadFullTape } from "./auth.js";
-import { handleCompleteRun, handleCorrect, handleGood, handlePauseRun, handleResumeRun, handleScrap, handleStartRun, HttpError, type Actor } from "./commands.js";
+import { handleCompleteRun, handleCorrect, handleGood, handleHandoffAccept, handleHandoffOverride, handleHandoffSubmit, handlePauseRun, handleResumeRun, handleScrap, handleStartRun, HttpError, type Actor } from "./commands.js";
 import { loadTape } from "./tape.js";
 import { effectiveQtySum } from "./effective.js";
 import { loadFloor } from "./floor.js";
@@ -11,6 +11,7 @@ import { seedPlant } from "./seed-plant.js";
 import { createPoolFromUrl, type SqlClient, type SqlPool } from "./sql.js";
 
 const operator: Actor = { userId: "U-OP-1", plantId: "PL-DEMO", role: "operator" };
+const supervisor: Actor = { userId: "U-SUP-1", plantId: "PL-DEMO", role: "supervisor" };
 const auditor: Actor = { userId: "U-AUD-1", plantId: "PL-DEMO", role: "auditor" };
 
 const startBody = {
@@ -305,4 +306,32 @@ test("unknown event cannot be corrected", async () => {
       ),
     (err: unknown) => statusOf(err) === 400,
   );
+});
+
+const shifts = { fromShift: "A", toShift: "B" };
+
+test("pending handoff blocks run.start until accept", async () => {
+  const db = await freshPlant();
+  await tx(db, (c) => handleHandoffSubmit(c, operator, { ...shifts, note: "eod" }, undefined));
+  const floor = await loadFloor(db, "PL-DEMO");
+  assert.equal(floor?.handoff.pending, true);
+  await assert.rejects(
+    () => tx(db, (c) => handleStartRun(c, operator, startBody, undefined)),
+    (err: unknown) => statusOf(err) === 409,
+  );
+  await tx(db, (c) => handleHandoffAccept(c, supervisor, shifts, undefined));
+  const started = await tx(db, (c) => handleStartRun(c, operator, startBody, undefined));
+  assert.equal(started.replayed, false);
+});
+
+test("supervisor override also clears the handoff gate", async () => {
+  const db = await freshPlant();
+  await tx(db, (c) => handleHandoffSubmit(c, operator, shifts, undefined));
+  await assert.rejects(
+    () => tx(db, (c) => handleHandoffOverride(c, operator, { ...shifts, reason: "busy" }, undefined)),
+    (err: unknown) => statusOf(err) === 403,
+  );
+  await tx(db, (c) => handleHandoffOverride(c, supervisor, { ...shifts, reason: "cover" }, undefined));
+  const started = await tx(db, (c) => handleStartRun(c, operator, startBody, undefined));
+  assert.equal(started.replayed, false);
 });

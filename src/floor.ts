@@ -1,3 +1,4 @@
+import { pendingHandoff } from "./handoff.js";
 import { annotateVoided } from "./effective.js";
 import { pausedAssetIds } from "./projections.js";
 import type { SqlPool } from "./db.js";
@@ -61,6 +62,7 @@ export async function loadFloor(pool: SqlPool, plantId: string) {
   );
 
   const paused = await pausedAssetIds(pool, plantId);
+  const handoff = await pendingHandoff(pool, plantId);
 
   return {
     plant: plant.rows[0],
@@ -84,5 +86,6 @@ export async function loadFloor(pool: SqlPool, plantId: string) {
     operations: ops.rows,
     reasonCodes: reasons.rows,
     tape: await annotateVoided(pool, plantId, tape.rows),
+    handoff: handoff ? { pending: true, ...handoff } : { pending: false },
   };
 }

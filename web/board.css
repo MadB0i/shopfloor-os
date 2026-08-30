@@ -32,7 +32,7 @@ body {
 
 .mast {
   display: grid;
-  grid-template-columns: auto 1fr auto auto auto;
+  grid-template-columns: auto 1fr auto auto auto auto;
   gap: 12px;
   align-items: center;
   padding: 8px 12px;
@@ -70,8 +70,20 @@ body {
   border-color: var(--crt);
 }
 
-.mast-link[data-state="off"] {
-  color: var(--oxide);
+.mast-hand {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+}
+
+.mast-hand[data-state="ok"] {
+  color: var(--mute);
+}
+
+.mast-hand[data-state="wait"] {
+  color: #141510;
+  background: var(--oxide);
   border-color: var(--oxide);
 }
 

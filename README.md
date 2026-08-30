@@ -25,6 +25,8 @@ Built for small press shops, packing cells, and job-work floors — the kind of 
 | Shift handoff | `handoff.submitted` / `handoff.accepted` |
 | Same command twice (flaky Wi‑Fi) | `Idempotency-Key` → same `event_id`, no double count |
 | Void a bad qty (keep the tape) | `record.corrected` naming `replacesEventId` |
+| Shift handoff gate | submit blocks `run.start` until ACK or SKIP |
+| Planner catalog | `POST /v1/catalog/...` |
 
 Demo plant: **PL-DEMO** (three assets, one work order, coded downtime/scrap reasons).
 

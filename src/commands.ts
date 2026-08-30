@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { SqlClient } from "./db.js";
 import type { EventType } from "./events/catalog.js";
+import { pendingHandoff } from "./handoff.js";
 import { assetIsPaused } from "./projections.js";
 import { supersededEventIds } from "./effective.js";
 import { appendEvent, lookupIdempotency, rememberIdempotency, requestHash } from "./events/store.js";
@@ -109,6 +110,12 @@ const handoffAccept = z.object({
   toShift: z.string().min(1),
 });
 
+const handoffOverride = z.object({
+  fromShift: z.string().min(1),
+  toShift: z.string().min(1),
+  reason: z.string().min(1).max(200),
+});
+
 async function assertRoutingAllowsStart(
   client: SqlClient,
   plantId: string,
@@ -159,6 +166,8 @@ export async function handleStartRun(
   const hash = requestHash({ cmd: "run.start", ...parsed });
   return replayOrRun(client, actor.plantId, idempotencyKey, hash, async () => {
     await assertRoutingAllowsStart(client, actor.plantId, parsed.workOrderId, parsed.operationId);
+    const blocked = await pendingHandoff(client, actor.plantId);
+    if (blocked) throw new HttpError(409, "handoff not accepted");
     const lock = await client.query(`SELECT asset_id FROM asset_locks WHERE asset_id = $1`, [parsed.assetId]);
     if (lock.rowCount) throw new HttpError(409, "asset already has an open run");
     const eventId = await emit(client, actor, "run.started", {
@@ -349,6 +358,13 @@ export async function handleDowntimeEnd(
   });
 }
 
+function requireShiftLead(actor: Actor) {
+  denyAuditor(actor);
+  if (actor.role === "operator") {
+    throw new HttpError(403, "only supervisor or planner can accept or override handoff");
+  }
+}
+
 export async function handleHandoffSubmit(
   client: SqlClient,
   actor: Actor,
@@ -366,12 +382,26 @@ export async function handleHandoffSubmit(
        WHERE a.plant_id = $1`,
       [actor.plantId],
     );
+    const downs = await client.query(
+      `SELECT DISTINCT ON (e.asset_id) e.asset_id, e.event_id, e.payload, e.occurred_at
+       FROM floor_events e
+       JOIN assets a ON a.id = e.asset_id
+       WHERE a.plant_id = $1 AND e.type = 'downtime.started'
+         AND NOT EXISTS (
+           SELECT 1 FROM floor_events e2
+           WHERE e2.plant_id = $1 AND e2.asset_id = e.asset_id AND e2.type = 'downtime.ended'
+             AND e2.occurred_at >= e.occurred_at
+         )
+       ORDER BY e.asset_id, e.occurred_at DESC`,
+      [actor.plantId],
+    );
     return emit(client, actor, "handoff.submitted", {
       payload: {
         fromShift: parsed.fromShift,
         toShift: parsed.toShift,
         note: parsed.note ?? "",
         openRuns: locks.rows,
+        openDowntime: downs.rows,
       },
     });
   });
@@ -383,17 +413,38 @@ export async function handleHandoffAccept(
   body: unknown,
   idempotencyKey: string | undefined,
 ) {
-  denyAuditor(actor);
-  if (actor.role === "operator") {
-    throw new HttpError(403, "only supervisor or planner can accept handoff");
-  }
+  requireShiftLead(actor);
   const parsed = handoffAccept.parse(body);
   const hash = requestHash({ cmd: "handoff.accept", actor: actor.userId, ...parsed });
-  return replayOrRun(client, actor.plantId, idempotencyKey, hash, async () =>
-    emit(client, actor, "handoff.accepted", {
+  return replayOrRun(client, actor.plantId, idempotencyKey, hash, async () => {
+    const pending = await pendingHandoff(client, actor.plantId);
+    if (!pending || pending.fromShift !== parsed.fromShift || pending.toShift !== parsed.toShift) {
+      throw new HttpError(409, "no pending handoff for that shift pair");
+    }
+    return emit(client, actor, "handoff.accepted", {
       payload: { fromShift: parsed.fromShift, toShift: parsed.toShift },
-    }),
-  );
+    });
+  });
+}
+
+export async function handleHandoffOverride(
+  client: SqlClient,
+  actor: Actor,
+  body: unknown,
+  idempotencyKey: string | undefined,
+) {
+  requireShiftLead(actor);
+  const parsed = handoffOverride.parse(body);
+  const hash = requestHash({ cmd: "handoff.override", actor: actor.userId, ...parsed });
+  return replayOrRun(client, actor.plantId, idempotencyKey, hash, async () => {
+    const pending = await pendingHandoff(client, actor.plantId);
+    if (!pending || pending.fromShift !== parsed.fromShift || pending.toShift !== parsed.toShift) {
+      throw new HttpError(409, "no pending handoff for that shift pair");
+    }
+    return emit(client, actor, "handoff.overridden", {
+      payload: { fromShift: parsed.fromShift, toShift: parsed.toShift, reason: parsed.reason },
+    });
+  });
 }
 
 const correctBody = z.object({

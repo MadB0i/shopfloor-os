@@ -15,6 +15,7 @@ Order is dependency, not a calendar. A slice is done when API + fixture + test e
 - Pause/resume: lock stays, `openRun.paused` on the floor payload
 - Corrections: qty events voided by `record.corrected`; auditor `GET /v1/tape`
 - OEE-lite: `GET /v1/metrics/oee`; board A/P/Q row
+- Handoff gate + planner catalog POSTs
 
 ## Spine (never drop)
 
@@ -42,11 +43,11 @@ In-memory PGlite. Double start 409, unknown scrap 400, auditor 403, idempotent r
 ### B5 — OEE-lite API (done)
 `GET /v1/metrics/oee?from=&to=&asset=`. Null if a factor cannot be computed. Board shows one dense A/P/Q/OEE row (local calendar day), not a chart.
 
-### B6 — Handoff as a gate (old C6)
-`handoff.submitted` snapshots open runs + open downtime. Next shift: `run.start` blocked until `handoff.accepted` for that plant/window **or** supervisor override event. Accept stays supervisor/planner-only.
+### B6 — Handoff as a gate (done)
+Latest `handoff.submitted` blocks `run.start` until matching `handoff.accepted` or `handoff.overridden` (supervisor/planner). Snapshot includes open runs and open downtime. Floor `handoff.pending`.
 
-### B7 — Planner catalog writes
-`POST` assets, reason codes, work orders, operations (planner role). Seed stays the demo; real plants stop living only in `seed.ts`.
+### B7 — Planner catalog writes (done)
+`POST /v1/catalog/assets|reason-codes|work-orders|operations`. Planner only. New WO emits `work_order.opened`. Seed remains the demo plant.
 
 ### B8 — Export (old C8, thin)
 `GET /v1/export/events.csv?from&to` — raw log, one row per event. No “pretty report” that hides corrections.
