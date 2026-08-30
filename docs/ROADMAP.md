@@ -26,8 +26,8 @@ Writes = commands → events. Reads = projections. Rebuild must match live locks
 
 ## Next to build (this order)
 
-### B0 — Run on this machine (done: PGlite default)
-`DATABASE_URL=pglite:./data/shopfloor` — no Docker, no Postgres password, no API keys. `npm run b0` then `npm start`. Real `postgres://` still supported.
+### B0 — Run on this machine (done)
+`docker compose up -d` gives you Postgres + the app with a seeded demo floor. Or run locally with PGlite (`npm run b0 && npm start`) — no Docker, no Postgres password, no API keys. Real `postgres://` via `DATABASE_URL` always works.
 
 ### B1 — Command tests (done)
 In-memory PGlite. Double start 409, unknown scrap 400, auditor 403, idempotent replay, rebuild restores lock. `npm test`. UI not in this slice.
@@ -69,4 +69,4 @@ ERP, GST, full inventory, native apps, SAP connectors, chatbots, ML scheduling, 
 
 Push the slice with a fixture + what broke if you skip the invariant. Stars follow a **runnable** board and an honest README, not a longer roadmap.
 
-Default clone uses PGlite (file DB). Postgres is optional.
+Default path: `docker compose up -d` (Postgres + app). Local alternative: PGlite file DB, no Docker required.

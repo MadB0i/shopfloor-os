@@ -1,21 +1,34 @@
 # ShopFloor OS
 
-A factory **black box**. Every start, pause, scrap count, and downtime reason is an append-only event. Nobody edits yesterday’s row. A mistake is a new `record.corrected` line, same as a paper log you were not allowed to white-out.
+A factory **black box** — an append-only event log for press shops, packing cells, and job-work floors.
 
-This is not another MES dashboard clone. The unit of truth is `floor_events` (PGlite by default, or Postgres). Locks and live status are projections. If the lock table lies, `npm run rebuild` reconstructs it from the log.
+Every start, pause, scrap count, and downtime reason is an immutable event. Nobody edits yesterday's row. A mistake is a new `record.corrected` line, same as a paper log you were not allowed to white-out. If the lock table lies, `npm run rebuild` reconstructs it from the log.
 
-Built for small press shops, packing cells, and job-work floors — the kind of place where the ticket lives in a shirt pocket and the delay reason dies at shift change.
+Not a dashboard clone. Not an MES. The unit of truth is `floor_events` — events are facts, locks and live status are projections.
 
 **License:** MIT · **Repo:** [github.com/MadB0i/shopfloor-os](https://github.com/MadB0i/shopfloor-os)
 
-## Who this is for
+## Stack
 
-- Operators who need one honest timeline per job (`WO-24-0841`), not six spreadsheets
-- Supervisors who need *why* a press was down, with a **reason code**, not a chat message
-- Auditors who must see history that cannot be silently rewritten
-- Developers who want an event-sourced core they can actually read in one sitting
+- **Runtime:** Node.js 20+, TypeScript, [Fastify 5](https://fastify.dev)
+- **Database:** PostgreSQL 16 (Docker) or [PGlite](https://github.com/electric-sql/pglite) (local dev, zero config)
+- **Validation:** [Zod](https://zod.dev) schemas per command
+- **No ORM.** Raw SQL migrations in `sql/`. You can read every query in one sitting.
 
-## What it does today
+## Quick start
+
+```bash
+git clone https://github.com/MadB0i/shopfloor-os.git
+cd shopfloor-os
+cp .env.example .env
+docker compose up -d          # starts Postgres + the app
+# or, without Docker:
+npm install && npm run b0 && npm start
+```
+
+Open [http://localhost:8787/](http://localhost:8787/) — token field: `dev-operator`. The board shows a live floor with asset lamps, a tape of recent events, and OEE scores.
+
+## What it does
 
 | You send | The log stores |
 | --- | --- |
@@ -28,67 +41,12 @@ Built for small press shops, packing cells, and job-work floors — the kind of 
 | Shift handoff gate | submit blocks `run.start` until ACK or SKIP |
 | Planner catalog | `POST /v1/catalog/...` |
 
-Demo plant: **PL-DEMO** (three assets, one work order, coded downtime/scrap reasons).
+Demo plant: **PL-DEMO** (three assets, one work order, coded downtime/scrap reasons, seeded events showing an active run, open downtime, and a pending handoff).
 
-**Board:** `http://localhost:8787/` — plant clock, asset lamps, ticket IDs. Looks like a floor instrument, not a SaaS landing page. See `docs/visual.md`.
-
-## Requirements
-
-- Node.js 20+
-- **No paid API keys.** Default database is **PGlite** (Postgres-compatible file in `./data/`). Optional: real PostgreSQL via `DATABASE_URL=postgres://...`
-
-## Run (B0 — this is the normal path)
-
-```bash
-git clone https://github.com/MadB0i/shopfloor-os.git
-cd shopfloor-os
-cp .env.example .env
-npm install
-npm run b0
-npm start
-```
-
-`npm run b0` = migrate + seed. Then open [http://localhost:8787/](http://localhost:8787/). Token field: `dev-operator`. LINK lamp turns CRT green when the log is up.
-
-`npm test` — B1–B4 command tests. No network, no API keys.
-
-Optional real Postgres (Docker or local) still works if you set `DATABASE_URL=postgres://shopfloor:shopfloor@localhost:5432/shopfloor` and create that role. Wrong password is `28P01` — use PGlite instead.
-
-### HTTP examples
-
-Raw event CSV (one row per event, including voided qty). JSON tape is auditor-only:
-
-```bash
-curl -s "http://localhost:8787/v1/export/events.csv" -H "Authorization: Bearer dev-operator" -o shopfloor-events.csv
-```
-
-OEE-lite window:
-
-```bash
-curl -s "http://localhost:8787/v1/metrics/oee?from=2026-08-30T00:00:00.000Z&to=2026-08-31T00:00:00.000Z" \
-  -H "Authorization: Bearer dev-operator"
-```
-
-```bash
-curl -s -X POST http://localhost:8787/v1/commands/run.start \
-  -H "Authorization: Bearer dev-operator" \
-  -H "Content-Type: application/json" \
-  -H "Idempotency-Key: run-1" \
-  -d "{\"assetId\":\"M-PRESS-01\",\"workOrderId\":\"WO-24-0841\",\"operationId\":\"OP-0841-1\"}"
-```
-
-After a crash drill on locks:
-
-```bash
-npm run rebuild
-```
-
-Contract: [`openapi.yaml`](openapi.yaml)
-
-## How the core is shaped
+## Architecture
 
 ```
-command (authenticated, plant-scoped)
+command (authenticated, plant-scoped, idempotent)
     → INSERT floor_events   # never UPDATE payload
     → touch projection      # e.g. asset_locks
 GET live / timeline / floor board   # read models only
@@ -96,13 +54,51 @@ GET live / timeline / floor board   # read models only
 
 Roles: `operator`, `supervisor`, `planner`, `auditor` (auditor cannot write).
 
-Unknown event types and unknown reason codes are rejected. Metrics that cannot be computed from the log are omitted, not invented (`docs/metrics.md`).
+Unknown event types and unknown reason codes are rejected. Metrics that cannot be computed from the log are omitted, not invented ([`docs/metrics.md`](docs/metrics.md)).
+
+Full architecture: [`docs/architecture.md`](docs/architecture.md). Visual constraints: [`docs/visual.md`](docs/visual.md).
+
+## Key properties
+
+- **Append-only.** `floor_events` is never UPDATEd. Corrections emit a new `record.corrected` event that names the original — the original stays on the tape with a `voided` flag.
+- **Deterministic rebuild.** `npm run rebuild` wipes `asset_locks` and reconstructs it from unmatched `run.started` vs `run.completed` in the event log. The projection is a cache, not a source of truth.
+- **Idempotent.** Duplicate commands (same `Idempotency-Key` + body) return the original `event_id` without double-counting. Changed body with the same key → 409.
+- **Routing gate.** `run.start` for operation seq N requires seq N−1 to have `run.completed`. Skip-ahead is rejected.
+- **Handoff gate.** A pending `handoff.submitted` blocks all `run.start` until a supervisor accepts or overrides.
+- **OEE from events.** Availability, performance, quality are computed from downtime intervals, good qty, and target qty — null when a factor cannot be determined.
+
+## Commands
+
+```bash
+# Start a run
+curl -s -X POST http://localhost:8787/v1/commands/run.start \
+  -H "Authorization: Bearer dev-operator" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: run-1" \
+  -d '{"assetId":"M-PRESS-01","workOrderId":"WO-24-0841","operationId":"OP-0841-1"}'
+
+# Record good qty
+curl -s -X POST http://localhost:8787/v1/commands/qty.good \
+  -H "Authorization: Bearer dev-operator" \
+  -H "Content-Type: application/json" \
+  -d '{"assetId":"M-PRESS-01","workOrderId":"WO-24-0841","operationId":"OP-0841-1","qty":50}'
+
+# Export raw event CSV
+curl -s "http://localhost:8787/v1/export/events.csv" \
+  -H "Authorization: Bearer dev-operator" -o shopfloor-events.csv
+
+# OEE for a window
+curl -s "http://localhost:8787/v1/metrics/oee?from=2026-08-30T00:00:00.000Z&to=2026-08-31T00:00:00.000Z" \
+  -H "Authorization: Bearer dev-operator"
+```
+
+Full contract: [`openapi.yaml`](openapi.yaml).
 
 ## Roadmap
 
-Capability order, no dates: [`docs/ROADMAP.md`](docs/ROADMAP.md). Architecture: [`docs/architecture.md`](docs/architecture.md).
+Capability order, no dates: [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
-Not in scope for this tree: ERP, GST, full warehouse, chatbots, “AI OEE”.
+Not in scope: ERP, GST, full warehouse, chatbots, "AI OEE".
 
 ## Authors
 
@@ -115,4 +111,4 @@ Full contribution rules: [`CONTRIBUTING.md`](CONTRIBUTING.md). Security notes: [
 
 ## Name
 
-ShopFloor OS is a working title. The “OS” means *operator system* (log + commands), not a kernel.
+ShopFloor OS is a working title. The "OS" means *operator system* (log + commands), not a kernel.
