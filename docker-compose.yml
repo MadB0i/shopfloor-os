@@ -9,6 +9,25 @@ services:
       - "5432:5432"
     volumes:
       - shopfloor_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shopfloor"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    ports:
+      - "8787:8787"
+    environment:
+      DATABASE_URL: postgres://shopfloor:shopfloor@db:5432/shopfloor
+      OPERATOR_TOKEN: dev-operator
+      SUPERVISOR_TOKEN: dev-supervisor
+      AUDITOR_TOKEN: dev-auditor
+      PLANNER_TOKEN: dev-planner
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
   shopfloor_pg:

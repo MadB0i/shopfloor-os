@@ -1,4 +1,12 @@
 node_modules
 dist
 .env
+.env.local
 .git
+data
+coverage
+*.log
+.DS_Store
+Thumbs.db
+.idea
+.vscode
