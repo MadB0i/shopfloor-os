@@ -19,7 +19,7 @@ afterEach(async () => {
 async function freshPlant() {
   pool = createPoolFromUrl("pglite:memory");
   await applyMigrations(pool);
-  await seedPlant(pool);
+  await seedPlant(pool, { skipEvents: true });
   return pool;
 }
 
