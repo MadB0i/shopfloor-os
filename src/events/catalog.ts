@@ -10,8 +10,6 @@ export const EVENT_TYPES = [
   "qty.scrap_recorded",
   "downtime.started",
   "downtime.ended",
-  "material.issued",
-  "material.returned",
   "handoff.submitted",
   "handoff.accepted",
   "handoff.overridden",
