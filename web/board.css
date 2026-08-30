@@ -8,6 +8,7 @@
   --oxide: #b1432e;
   --crt: #7ecb55;
   --warn: #c9a227;
+  color-scheme: dark;
 }
 
 * {
@@ -26,7 +27,8 @@ body {
 
 body {
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  /* mast / deck / jobs / tape — deck absorbs leftover height, tape pinned low */
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
   min-height: 100vh;
 }
 
@@ -49,6 +51,10 @@ body {
 .mast-plant {
   font-family: Consolas, "Cascadia Mono", monospace;
   font-size: 14px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .mast-clock {
@@ -125,7 +131,10 @@ body {
 
 .bay {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  /* auto-fit: existing tiles absorb the full row — no empty grid tracks, so
+     three assets span the whole bay instead of leaving a dead black strip
+     before the command panel. */
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
   gap: 1px;
   background: var(--line);
   padding: 1px;
@@ -137,6 +146,10 @@ body {
   padding: 12px;
   cursor: pointer;
   min-height: 140px;
+  /* Tile fills the bay height; OEE row pins to the bottom so a stretched
+     tile reads as an instrument card, not a shell with a dead interior. */
+  display: flex;
+  flex-direction: column;
 }
 
 .asset[aria-selected="true"] {
@@ -191,11 +204,17 @@ body {
 }
 
 .oee {
-  margin-top: 8px;
+  margin-top: auto;
+  padding-top: 8px;
   font-family: Consolas, "Cascadia Mono", monospace;
   font-size: 10px;
   color: var(--mute);
   letter-spacing: 0.06em;
+}
+
+.asset:focus-visible {
+  outline: 2px solid var(--yellow);
+  outline-offset: -2px;
 }
 
 .stencil {
@@ -305,7 +324,8 @@ body {
 
 #jobCards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  /* auto-fit: same rationale as .bay — cards span the full row, no dead tracks */
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
   gap: 1px;
   background: var(--line);
 }
@@ -564,12 +584,22 @@ body {
   font-size: 11px;
 }
 
+@media (max-width: 960px) {
+  /* Three 220px-min tiles need a 662px bay; below ~942px viewport the
+     side-by-side deck wraps them 2+1. Stack the command panel under the bay
+     so tiles keep a clean single row. */
+  .deck {
+    grid-template-columns: 1fr;
+  }
+  .stencil {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+}
+
 @media (max-width: 800px) {
   .mast {
     grid-template-columns: 1fr 1fr;
-  }
-  .deck {
-    grid-template-columns: 1fr;
   }
   .tape li {
     grid-template-columns: 1fr;

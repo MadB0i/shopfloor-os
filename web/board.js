@@ -1,3 +1,9 @@
+﻿// Deep-link identity: /?token=dev-supervisor boots straight into that role.
+// Meant for factory displays and demo links — a pinned screen should not need
+// a human to pick an identity on every cold boot.
+const urlToken = new URLSearchParams(location.search).get("token");
+if (urlToken) localStorage.setItem("sfos.token", urlToken.trim());
+
 const plantEl = document.querySelector("#plant");
 const clockEl = document.querySelector("#clock");
 const linkEl = document.querySelector("#link");
@@ -389,3 +395,4 @@ document.querySelector(".pads").addEventListener("click", async (ev) => {
 
 setInterval(load, 2500);
 load();
+
