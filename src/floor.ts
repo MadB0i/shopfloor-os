@@ -1,5 +1,5 @@
 import { pendingHandoff } from "./handoff.js";
-import { annotateVoided } from "./effective.js";
+import { annotateVoided, effectiveQtySum } from "./effective.js";
 import { pausedAssetIds } from "./projections.js";
 import type { SqlPool } from "./db.js";
 
@@ -64,6 +64,11 @@ export async function loadFloor(pool: SqlPool, plantId: string) {
   const paused = await pausedAssetIds(pool, plantId);
   const handoff = await pendingHandoff(pool, plantId);
 
+  const goodQtyByWo = new Map<string, number>();
+  for (const wo of orders.rows) {
+    goodQtyByWo.set(wo.id, await effectiveQtySum(pool, plantId, "qty.good_recorded", { workOrderId: wo.id }));
+  }
+
   return {
     plant: plant.rows[0],
     assets: assets.rows.map((a) => ({
@@ -82,7 +87,10 @@ export async function loadFloor(pool: SqlPool, plantId: string) {
         : null,
       openDowntime: downByAsset.get(a.id) ?? null,
     })),
-    workOrders: orders.rows,
+    workOrders: orders.rows.map((wo) => ({
+      ...wo,
+      goodQty: goodQtyByWo.get(wo.id) ?? 0,
+    })),
     operations: ops.rows,
     reasonCodes: reasons.rows,
     tape: await annotateVoided(pool, plantId, tape.rows),

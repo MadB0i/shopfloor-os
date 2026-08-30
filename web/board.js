@@ -75,6 +75,7 @@ async function load() {
       oeeById = Object.fromEntries((body.assets || []).map((s) => [s.assetId, s]));
     }
     renderAssets();
+    renderJobs();
     renderOps();
     renderReasons();
     renderTape();
@@ -115,6 +116,56 @@ function renderAssets() {
   if (!selectedAsset && floor.assets[0]) {
     selectedAsset = floor.assets[0].id;
     selectedEl.textContent = selectedAsset;
+  }
+}
+
+function renderJobs() {
+  const el = document.querySelector("#jobCards");
+  el.replaceChildren();
+  for (const wo of floor.workOrders) {
+    const card = document.createElement("article");
+    card.className = "jobcard";
+
+    const good = wo.goodQty ?? 0;
+    const target = wo.target_qty ?? 0;
+    const pct = target > 0 ? Math.min(100, Math.round((good / target) * 100)) : 0;
+
+    let status = "IDLE";
+    let statusCls = "idle";
+    let opName = "";
+    let assetCode = "";
+    for (const a of floor.assets) {
+      if (a.openRun && a.openRun.workOrderId === wo.id) {
+        const op = floor.operations.find((o) => o.id === a.openRun.operationId);
+        opName = op ? `OP-${op.seq} ${op.name}` : a.openRun.operationId;
+        assetCode = a.code;
+        if (a.openRun.paused) {
+          status = "PAUSED";
+          statusCls = "paused";
+        } else {
+          status = "RUNNING";
+          statusCls = "running";
+        }
+        break;
+      }
+    }
+    if (status === "IDLE") {
+      const lastOp = floor.operations.filter((o) => o.work_order_id === wo.id).sort((a, b) => b.seq - a.seq)[0];
+      opName = lastOp ? `OP-${lastOp.seq} ${lastOp.name}` : "";
+    }
+
+    card.innerHTML = `
+      <div class="jobhead">
+        <span class="jocode">${wo.code}</span>
+        <span class="jostatus ${statusCls}">${status}</span>
+      </div>
+      <div class="joop">${opName}${assetCode ? " on " + assetCode : ""}</div>
+      <div class="joprogress">
+        <div class="jobar"><div class="jofill ${statusCls}" style="width:${pct}%"></div></div>
+        <span class="joqty">${good} / ${target}</span>
+      </div>
+    `;
+    el.append(card);
   }
 }
 

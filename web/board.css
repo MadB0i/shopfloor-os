@@ -272,6 +272,113 @@ body {
   background: #12130f;
 }
 
+.jobs {
+  border-top: 2px solid var(--yellow);
+  padding: 8px 12px 12px;
+  background: #12130f;
+}
+
+.jobs h2 {
+  margin: 0 0 8px;
+  font-size: 11px;
+  color: var(--yellow);
+  font-weight: 700;
+}
+
+#jobCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1px;
+  background: var(--line);
+}
+
+.jobcard {
+  background: var(--panel);
+  padding: 10px 12px;
+}
+
+.jobhead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+
+.jocode {
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 14px;
+  color: var(--yellow);
+  font-weight: 700;
+}
+
+.jostatus {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+}
+
+.jostatus.running {
+  color: #141510;
+  background: var(--crt);
+  border-color: var(--crt);
+}
+
+.jostatus.paused {
+  color: #141510;
+  background: var(--warn);
+  border-color: var(--warn);
+}
+
+.jostatus.idle {
+  color: var(--mute);
+}
+
+.joop {
+  font-size: 11px;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+
+.joprogress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.jobar {
+  flex: 1;
+  height: 6px;
+  background: #0e0f0c;
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.jofill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.jofill.running {
+  background: var(--crt);
+}
+
+.jofill.paused {
+  background: var(--warn);
+}
+
+.jofill.idle {
+  background: var(--mute);
+}
+
+.joqty {
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 11px;
+  color: var(--mute);
+  white-space: nowrap;
+}
+
 .tape ol {
   list-style: none;
   margin: 0;
