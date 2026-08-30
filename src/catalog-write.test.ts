@@ -4,6 +4,7 @@ import {
   handleCreateAsset,
   handleCreateOperation,
   handleCreateReasonCode,
+  handleCreateShift,
   handleCreateWorkOrder,
 } from "./catalog-write.js";
 import { handleStartRun, HttpError, type Actor } from "./commands.js";
@@ -100,5 +101,20 @@ test("duplicate asset code is 409", async () => {
   await assert.rejects(
     () => tx(db, (c) => handleCreateAsset(c, planner, { code: "PRESS-01", name: "dup" })),
     (err: unknown) => statusOf(err) === 409,
+  );
+});
+
+test("planner can add a shift; operator cannot", async () => {
+  const db = await freshPlant();
+  const shift = await tx(db, (c) =>
+    handleCreateShift(c, planner, { code: "NIGHT", name: "Night", startsAt: "22:00", endsAt: "06:00" }),
+  );
+  assert.equal(shift.id, "SHIFT-NIGHT");
+  const rows = await db.query(`SELECT code, name FROM shifts WHERE id = $1`, [shift.id]);
+  assert.equal(rows.rows[0].code, "NIGHT");
+  assert.equal(rows.rows[0].name, "Night");
+  await assert.rejects(
+    () => tx(db, (c) => handleCreateShift(c, operator, { code: "OTHER", name: "Other" })),
+    (err: unknown) => statusOf(err) === 403,
   );
 });

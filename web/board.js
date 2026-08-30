@@ -9,6 +9,8 @@ const opEl = document.querySelector("#op");
 const qtyEl = document.querySelector("#qty");
 const scrapEl = document.querySelector("#scrapReason");
 const downEl = document.querySelector("#downReason");
+const shiftFromEl = document.querySelector("#shiftFrom");
+const shiftToEl = document.querySelector("#shiftTo");
 const faultEl = document.querySelector("#fault");
 
 const whoamiEl = document.querySelector("#whoami");
@@ -185,6 +187,7 @@ async function load() {
     renderJobs();
     renderOps();
     renderReasons();
+    renderShifts();
     renderTape();
     faultEl.hidden = true;
   } catch (err) {
@@ -301,6 +304,22 @@ function renderReasons() {
   }
 }
 
+function renderShifts() {
+  const list = floor.shifts || [];
+  shiftFromEl.replaceChildren();
+  shiftToEl.replaceChildren();
+  for (const s of list) {
+    const fromOpt = document.createElement("option");
+    fromOpt.value = s.code;
+    fromOpt.textContent = `${s.code} ${s.name}`;
+    shiftFromEl.append(fromOpt);
+    shiftToEl.append(fromOpt.cloneNode(true));
+  }
+  if (list.length > 1) {
+    shiftToEl.value = list[1].code;
+  }
+}
+
 function renderTape() {
   tapeEl.replaceChildren();
   for (const ev of floor.tape) {
@@ -334,9 +353,9 @@ const bodies = {
   }),
   "downtime.start": () => ({ assetId: selectedAsset, reasonCode: downEl.value }),
   "downtime.end": () => ({ assetId: selectedAsset }),
-  "handoff.submit": () => ({ fromShift: "A", toShift: "B", note: "board" }),
-  "handoff.accept": () => ({ fromShift: "A", toShift: "B" }),
-  "handoff.override": () => ({ fromShift: "A", toShift: "B", reason: "board" }),
+  "handoff.submit": () => ({ fromShift: shiftFromEl.value, toShift: shiftToEl.value, note: "board" }),
+  "handoff.accept": () => ({ fromShift: shiftFromEl.value, toShift: shiftToEl.value }),
+  "handoff.override": () => ({ fromShift: shiftFromEl.value, toShift: shiftToEl.value, reason: "board" }),
 };
 
 document.querySelector(".pads").addEventListener("click", async (ev) => {

@@ -239,6 +239,28 @@ async function requireOpenLock(client: SqlClient, assetId: string) {
   return lock.rows[0].run_event_id;
 }
 
+/**
+ * Non-throwing lookup of the job currently on an asset, from the lock
+ * projection. Returns the run's work order / operation if the asset has an
+ * open run, otherwise null. Used to link asset-scoped events (downtime) to
+ * the job they happened on, without failing when there is no open run.
+ */
+async function openRunJob(
+  client: SqlClient,
+  assetId: string,
+): Promise<{ workOrderId: string; operationId: string } | null> {
+  const { rows } = await client.query<{ work_order_id: string | null; operation_id: string | null }>(
+    `SELECT s.work_order_id, s.operation_id
+     FROM asset_locks l
+     JOIN floor_events s ON s.event_id = l.run_event_id
+     WHERE l.asset_id = $1`,
+    [assetId],
+  );
+  const row = rows[0];
+  if (!row || !row.work_order_id || !row.operation_id) return null;
+  return { workOrderId: row.work_order_id, operationId: row.operation_id };
+}
+
 export async function handlePauseRun(
   client: SqlClient,
   actor: Actor,
@@ -341,10 +363,13 @@ export async function handleDowntimeStart(
   authorize(actor, "run.write");
   const parsed = downtimeStart.parse(body);
   await requireReason(client, actor.plantId, "downtime", parsed.reasonCode);
+  const job = await openRunJob(client, parsed.assetId);
   const hash = requestHash({ cmd: "downtime.start", ...parsed });
   return replayOrRun(client, actor.plantId, idempotencyKey, hash, async () =>
     emit(client, actor, "downtime.started", {
       assetId: parsed.assetId,
+      workOrderId: job?.workOrderId ?? null,
+      operationId: job?.operationId ?? null,
       payload: { reasonCode: parsed.reasonCode },
     }),
   );

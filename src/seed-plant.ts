@@ -56,6 +56,14 @@ async function insertCatalog(client: SqlClient) {
       ('OP-0841-3', 'WO-24-0841', 3, 'Pack', 'M-PACK-01')
      ON CONFLICT DO NOTHING`,
   );
+  await client.query(
+    `INSERT INTO shifts (id, plant_id, code, name, starts_at, ends_at) VALUES
+      ('SHIFT-A', $1, 'A', 'Morning', '06:00', '14:00'),
+      ('SHIFT-B', $1, 'B', 'Afternoon', '14:00', '22:00'),
+      ('SHIFT-C', $1, 'C', 'Night', '22:00', '06:00')
+     ON CONFLICT DO NOTHING`,
+    [plant],
+  );
 }
 
 async function insertDemoEvents(client: SqlClient) {

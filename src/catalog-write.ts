@@ -39,6 +39,14 @@ const opBody = z.object({
   defaultAssetId: z.string().min(1).optional(),
 });
 
+const shiftBody = z.object({
+  id: z.string().min(1).optional(),
+  code: z.string().min(1).max(20),
+  name: z.string().min(1).max(80),
+  startsAt: z.string().optional(),
+  endsAt: z.string().optional(),
+});
+
 export async function handleCreateAsset(client: SqlClient, actor: Actor, body: unknown) {
   authorize(actor, "catalog.write");
   const parsed = assetBody.parse(body);
@@ -113,6 +121,21 @@ export async function handleCreateOperation(client: SqlClient, actor: Actor, bod
     await client.query(
       `INSERT INTO operations (id, work_order_id, seq, name, default_asset_id) VALUES ($1, $2, $3, $4, $5)`,
       [id, parsed.workOrderId, parsed.seq, parsed.name, parsed.defaultAssetId ?? null],
+    );
+  } catch (err) {
+    duplicate(err);
+  }
+  return { id };
+}
+
+export async function handleCreateShift(client: SqlClient, actor: Actor, body: unknown) {
+  authorize(actor, "catalog.write");
+  const parsed = shiftBody.parse(body);
+  const id = parsed.id ?? `SHIFT-${parsed.code}`;
+  try {
+    await client.query(
+      `INSERT INTO shifts (id, plant_id, code, name, starts_at, ends_at) VALUES ($1, $2, $3, $4, $5, $6)`,
+      [id, actor.plantId, parsed.code, parsed.name, parsed.startsAt ?? null, parsed.endsAt ?? null],
     );
   } catch (err) {
     duplicate(err);

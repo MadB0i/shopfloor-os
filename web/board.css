@@ -246,6 +246,12 @@ body {
   margin-top: 10px;
 }
 
+.shiftrow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
 .pads button {
   background: #2e2f27;
   color: var(--ink);

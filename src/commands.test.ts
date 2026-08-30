@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import { canReadFullTape, capabilitiesFor } from "./auth.js";
-import { authorize, handleCompleteRun, handleCorrect, handleGood, handleHandoffAccept, handleHandoffOverride, handleHandoffSubmit, handlePauseRun, handleResumeRun, handleScrap, handleStartRun, HttpError, type Actor } from "./commands.js";
+import { authorize, handleCompleteRun, handleCorrect, handleDowntimeEnd, handleDowntimeStart, handleGood, handleHandoffAccept, handleHandoffOverride, handleHandoffSubmit, handlePauseRun, handleResumeRun, handleScrap, handleStartRun, HttpError, type Actor } from "./commands.js";
 import { loadTape } from "./tape.js";
 import { effectiveQtySum } from "./effective.js";
 import { loadFloor } from "./floor.js";
@@ -382,4 +382,42 @@ test("supervisor override also clears the handoff gate", async () => {
   await tx(db, (c) => handleHandoffOverride(c, supervisor, { ...shifts, reason: "cover" }, undefined));
   const started = await tx(db, (c) => handleStartRun(c, operator, startBody, undefined));
   assert.equal(started.replayed, false);
+});
+
+test("downtime.start links to the open run's work order; asset-scoped when idle", async () => {
+  const db = await freshPlant();
+  const idleAsset = "M-PRESS-02";
+
+  // No open run on the asset: downtime.started must not throw and has no job link.
+  await tx(db, (c) => handleDowntimeStart(c, operator, { assetId: idleAsset, reasonCode: "WAIT-MATERIAL" }, undefined));
+  const idleEvt = await db.query(
+    `SELECT work_order_id, operation_id, payload FROM floor_events
+     WHERE plant_id = $1 AND asset_id = $2 AND type = 'downtime.started'`,
+    [operator.plantId, idleAsset],
+  );
+  assert.equal(idleEvt.rowCount, 1);
+  assert.equal(idleEvt.rows[0].work_order_id, null);
+  assert.equal(idleEvt.rows[0].operation_id, null);
+
+  // Open run on the asset: downtime.started inherits WO / operation from the lock.
+  await tx(db, (c) => handleStartRun(c, operator, startBody, undefined));
+  await tx(db, (c) => handleDowntimeStart(c, operator, { assetId: startBody.assetId, reasonCode: "BREAKDOWN" }, undefined));
+
+  const linked = await db.query(
+    `SELECT work_order_id, operation_id FROM floor_events
+     WHERE plant_id = $1 AND asset_id = $2 AND type = 'downtime.started'
+     ORDER BY id DESC LIMIT 1`,
+    [operator.plantId, startBody.assetId],
+  );
+  assert.equal(linked.rows[0].work_order_id, startBody.workOrderId);
+  assert.equal(linked.rows[0].operation_id, startBody.operationId);
+
+  // Closing still works from a linked event, and the end event is asset-scoped.
+  await tx(db, (c) => handleDowntimeEnd(c, operator, { assetId: startBody.assetId }, undefined));
+  const ended = await db.query(
+    `SELECT work_order_id, operation_id FROM floor_events
+     WHERE plant_id = $1 AND asset_id = $2 AND type = 'downtime.ended'`,
+    [operator.plantId, startBody.assetId],
+  );
+  assert.equal(ended.rowCount, 1);
 });

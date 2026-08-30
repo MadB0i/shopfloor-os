@@ -24,6 +24,7 @@ import {
   handleCreateAsset,
   handleCreateOperation,
   handleCreateReasonCode,
+  handleCreateShift,
   handleCreateWorkOrder,
 } from "./catalog-write.js";
 import { pool } from "./db.js";
@@ -179,6 +180,9 @@ export async function build() {
   );
   app.post("/v1/catalog/operations", async (req, reply) =>
     catalogWrite(req as never, reply, handleCreateOperation),
+  );
+  app.post("/v1/catalog/shifts", async (req, reply) =>
+    catalogWrite(req as never, reply, handleCreateShift),
   );
 
   app.get("/v1/floor", async (req, reply) => {
