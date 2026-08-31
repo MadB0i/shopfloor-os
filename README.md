@@ -10,6 +10,12 @@ Not a dashboard clone. Not an MES. The unit of truth is `floor_events` — event
 
 The board is a control-room instrument: dark graphite surfaces, color reserved for state (green = running, red = down, amber = hold), monospace data readable from a few feet away.
 
+![Demo: sign in as the operator, start a run on the press, record good qty against the job card, take the pack bench down, and hand off the shift](docs/screenshots/demo.gif)
+
+*~18 seconds, live: identity picker → RUN START on the press → GOOD+ moving the WO job-card bar → DOWN START on the pack bench → the pending-handoff lamp glowing amber. Regenerate with `node scripts/capture-demo.mjs` (see the script header for prerequisites).*
+
+Static shots of the same board:
+
 ![The board at a glance: a running press with its job card, a press down with an open downtime, an idle pack bench, and a pending shift handoff](docs/screenshots/board-1600.png)
 
 Each asset tile carries a status rail in its state color; job cards show WO progress against target.
